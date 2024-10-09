@@ -1,0 +1,26 @@
+--- L4T/Linux_for_Tegra/bootloader/t186ref/BCT/tegra234-mb1-bct-pinmux-p3701-0000.dtsi	2022-08-10 23:37:32.012956206 -0400
++++ L4T/Linux_for_Tegra/bootloader/t186ref/BCT/tegra234-mb1-bct-pinmux-p3701-0000.dtsi	2023-02-14 12:01:54.942203274 -0500
+@@ -983,17 +983,17 @@
+ 			can1_stb_pbb0 {
+ 				nvidia,pins = "can1_stb_pbb0";
+ 				nvidia,function = "rsvd0";
+-				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_DISABLE>;
++				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
+ 			};
+ 
+ 			can1_en_pbb1 {
+ 				nvidia,pins = "can1_en_pbb1";
+ 				nvidia,function = "rsvd0";
+-				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+-				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+-				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
++				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
++				nvidia,tristate = <TEGRA_PIN_DISABLE>;
++				nvidia,enable-input = <TEGRA_PIN_DISABLE>; // already_patched
+ 			};
+ 
+ 			soc_gpio50_pbb2 {

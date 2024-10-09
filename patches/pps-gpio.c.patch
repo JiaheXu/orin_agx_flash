@@ -1,0 +1,11 @@
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/drivers/pps/clients/pps-gpio.c	2022-08-10 23:15:31.000000000 -0400
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/drivers/pps/clients/pps-gpio.c	2023-02-13 11:29:20.134843932 -0500
+@@ -186,7 +186,7 @@
+ 	} else {
+ 		ret = pps_gpio_setup(pdev);
+ 		if (ret)
+-			return -EINVAL;
++			return ret;//-EINVAL; // already_patched
+ 	}
+ 
+ 	/* IRQ setup */

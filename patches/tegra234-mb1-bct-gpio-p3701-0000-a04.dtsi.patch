@@ -1,0 +1,20 @@
+--- L4T/Linux_for_Tegra/bootloader/tegra234-mb1-bct-gpio-p3701-0000-a04.dtsi	2022-08-10 23:37:32.012956206 -0400
++++ L4T/Linux_for_Tegra/bootloader/tegra234-mb1-bct-gpio-p3701-0000-a04.dtsi	2023-02-14 10:40:14.852367057 -0500
+@@ -115,8 +115,6 @@
+ 				TEGRA234_AON_GPIO(AA, 1)
+ 				TEGRA234_AON_GPIO(AA, 2)
+ 				TEGRA234_AON_GPIO(AA, 3)
+-				TEGRA234_AON_GPIO(BB, 0)
+-				TEGRA234_AON_GPIO(BB, 1)
+ 				>;
+ 			gpio-output-low = <
+ 				TEGRA234_AON_GPIO(CC, 2)
+@@ -124,6 +122,8 @@
+ 				>;
+ 			gpio-output-high = <
+ 				TEGRA234_AON_GPIO(BB, 3)
++				TEGRA234_AON_GPIO(BB, 0)
++				TEGRA234_AON_GPIO(BB, 1) // already_patched
+ 				>;
+ 		};
+ 	};

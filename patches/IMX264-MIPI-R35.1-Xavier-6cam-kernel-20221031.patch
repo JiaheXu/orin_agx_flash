@@ -1,0 +1,2675 @@
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/arch/arm64/configs/defconfig	2022-08-10 23:15:28.000000000 -0400
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/arch/arm64/configs/defconfig	2023-02-13 11:23:10.750336372 -0500
+@@ -747,7 +747,10 @@
+ CONFIG_SPI_SPIDEV=m
+ CONFIG_SPI_TLE62X0=m
+ CONFIG_SPMI=m
++CONFIG_PPS=y
+ CONFIG_PPS_DEBUG=y
++CONFIG_PPS_CLIENT_KTIMER=y
++CONFIG_PPS_CLIENT_LDISC=y
+ CONFIG_PPS_CLIENT_GPIO=y
+ CONFIG_PINCTRL_TEGRA186_DPAUX=y
+ CONFIG_PINCTRL_TEGRA234_DPAUX=y
+@@ -893,6 +896,9 @@
+ CONFIG_I2C_IOEXPANDER_SER_MAX9295=y
+ CONFIG_I2C_IOEXPANDER_DESER_MAX9296=y
+ CONFIG_NV_VIDEO_IMX390=y
++CONFIG_NV_VIDEO_RESET=y
++CONFIG_NV_VIDEO_IMX264_FPGA=y
++CONFIG_NV_VIDEO_IMX264=y # already_patched
+ CONFIG_NV_DESER_MAX96712=m
+ CONFIG_NV_VIDEO_AR0234=m
+ # CONFIG_CXD2880_SPI_DRV is not set
+diff -Naur kernel/kernel-5.10/arch/arm64/configs/tegra_defconfig kernel_new/kernel-5.10/arch/arm64/configs/tegra_defconfig
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/drivers/i2c/muxes/i2c-mux-pca954x.c	2022-08-10 20:15:30.000000000 -0700
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/drivers/i2c/muxes/i2c-mux-pca954x.c	2022-10-31 00:58:32.513125278 -0700
+@@ -1,15 +1,15 @@
+-// SPDX-License-Identifier: GPL-2.0
+ /*
+  * I2C multiplexer
+  *
+  * Copyright (c) 2008-2009 Rodolfo Giometti <giometti@linux.it>
+  * Copyright (c) 2008-2009 Eurotech S.p.A. <info@eurotech.it>
++ * Copyright (c) 2016-2022 NVIDIA CORPORATION.  All rights reserved.
+  *
+- * This module supports the PCA954x and PCA984x series of I2C multiplexer/switch
+- * chips made by NXP Semiconductors.
++ * This module supports the PCA954x series of I2C multiplexer/switch chips
++ * made by Philips Semiconductors.
+  * This includes the:
+- *	 PCA9540, PCA9542, PCA9543, PCA9544, PCA9545, PCA9546, PCA9547,
+- *	 PCA9548, PCA9846, PCA9847, PCA9848 and PCA9849.
++ *	 PCA9540, PCA9542, PCA9543, PCA9544, PCA9545, PCA9546, PCA9547
++ *	 and PCA9548.
+  *
+  * These chips are all controlled via the I2C bus itself, and all have a
+  * single 8-bit register. The upstream "parent" bus fans out to two,
+@@ -31,46 +31,25 @@
+  * and
+  *	pca9540.c from Jean Delvare <jdelvare@suse.de>.
+  *
+- * Copyright (c) 2021, NVIDIA CORPORATION.  All rights reserved.
++ * This file is licensed under the terms of the GNU General Public
++ * License version 2. This program is licensed "as is" without any
++ * warranty of any kind, whether express or implied.
+  */
+ 
+ #include <linux/device.h>
+-#include <linux/delay.h>
+ #include <linux/gpio/consumer.h>
+ #include <linux/i2c.h>
+ #include <linux/i2c-mux.h>
+-#include <linux/interrupt.h>
+-#include <linux/irq.h>
++#include "pca954x.h"
+ #include <linux/module.h>
++#include <linux/of.h>
++#include <linux/of_device.h>
+ #include <linux/pm.h>
+-#include <linux/property.h>
+ #include <linux/slab.h>
+-#include <linux/spinlock.h>
+-#include <dt-bindings/mux/mux.h>
+ #include <linux/regulator/consumer.h>
+ 
+ #define PCA954X_MAX_NCHANS 8
+ 
+-#define PCA954X_IRQ_OFFSET 4
+-
+-/* Per channel initialisation data:
+- * @adap_id: bus number for the adapter. 0 = don't care
+- * @deselect_on_exit: set this entry to 1, if your H/W needs deselection
+- *                    of this channel after transaction.
+- *
+- */
+-struct pca954x_platform_mode {
+-	int		adap_id;
+-	unsigned int	deselect_on_exit:1;
+-	unsigned int	class;
+-};
+-
+-/* Per mux/switch data, used with i2c_register_board_info */
+-struct pca954x_platform_data {
+-	struct pca954x_platform_mode *modes;
+-	int num_modes;
+-};
+-
+ enum pca_type {
+ 	pca_9540,
+ 	pca_9542,
+@@ -80,35 +59,23 @@
+ 	pca_9546,
+ 	pca_9547,
+ 	pca_9548,
+-	pca_9846,
+-	pca_9847,
+-	pca_9848,
+-	pca_9849,
+ };
+ 
+ struct chip_desc {
+ 	u8 nchans;
+ 	u8 enable;	/* used for muxes only */
+-	u8 has_irq;
+ 	enum muxtype {
+ 		pca954x_ismux = 0,
+ 		pca954x_isswi
+ 	} muxtype;
+-	struct i2c_device_identity id;
+ };
+ 
+ struct pca954x {
+ 	const struct chip_desc *chip;
+ 
+ 	u8 last_chan;		/* last register value */
+-	/* MUX_IDLE_AS_IS, MUX_IDLE_DISCONNECT or >= 0 for channel */
+-	s32 idle_state;
+-
++	u8 deselect;
+ 	struct i2c_client *client;
+-
+-	struct irq_domain *irq;
+-	unsigned int irq_mask;
+-	raw_spinlock_t lock;
+ 	struct regulator *vcc_reg;
+ 	struct regulator *pullup_reg;
+ };
+@@ -119,149 +86,107 @@
+ 		.nchans = 2,
+ 		.enable = 0x4,
+ 		.muxtype = pca954x_ismux,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+-	},
+-	[pca_9542] = {
+-		.nchans = 2,
+-		.enable = 0x4,
+-		.has_irq = 1,
+-		.muxtype = pca954x_ismux,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+ 	},
+ 	[pca_9543] = {
+ 		.nchans = 2,
+-		.has_irq = 1,
+ 		.muxtype = pca954x_isswi,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+ 	},
+ 	[pca_9544] = {
+ 		.nchans = 4,
+ 		.enable = 0x4,
+-		.has_irq = 1,
+ 		.muxtype = pca954x_ismux,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+ 	},
+ 	[pca_9545] = {
+ 		.nchans = 4,
+-		.has_irq = 1,
+ 		.muxtype = pca954x_isswi,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+ 	},
+ 	[pca_9546] = {
+ 		.nchans = 4,
+ 		.muxtype = pca954x_isswi,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+ 	},
+ 	[pca_9547] = {
+ 		.nchans = 8,
+ 		.enable = 0x8,
+ 		.muxtype = pca954x_ismux,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+ 	},
+ 	[pca_9548] = {
+ 		.nchans = 8,
+ 		.muxtype = pca954x_isswi,
+-		.id = { .manufacturer_id = I2C_DEVICE_ID_NONE },
+-	},
+-	[pca_9846] = {
+-		.nchans = 4,
+-		.muxtype = pca954x_isswi,
+-		.id = {
+-			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+-			.part_id = 0x10b,
+-		},
+-	},
+-	[pca_9847] = {
+-		.nchans = 8,
+-		.enable = 0x8,
+-		.muxtype = pca954x_ismux,
+-		.id = {
+-			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+-			.part_id = 0x108,
+-		},
+-	},
+-	[pca_9848] = {
+-		.nchans = 8,
+-		.muxtype = pca954x_isswi,
+-		.id = {
+-			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+-			.part_id = 0x10a,
+-		},
+-	},
+-	[pca_9849] = {
+-		.nchans = 4,
+-		.enable = 0x4,
+-		.muxtype = pca954x_ismux,
+-		.id = {
+-			.manufacturer_id = I2C_DEVICE_ID_NXP_SEMICONDUCTORS,
+-			.part_id = 0x109,
+-		},
+ 	},
+ };
+ 
+ static const struct i2c_device_id pca954x_id[] = {
+ 	{ "pca9540", pca_9540 },
+-	{ "pca9542", pca_9542 },
++	{ "pca9542", pca_9540 },
+ 	{ "pca9543", pca_9543 },
+ 	{ "pca9544", pca_9544 },
+ 	{ "pca9545", pca_9545 },
+ 	{ "pca9546", pca_9546 },
+ 	{ "pca9547", pca_9547 },
+ 	{ "pca9548", pca_9548 },
+-	{ "pca9846", pca_9846 },
+-	{ "pca9847", pca_9847 },
+-	{ "pca9848", pca_9848 },
+-	{ "pca9849", pca_9849 },
+ 	{ }
+ };
+ MODULE_DEVICE_TABLE(i2c, pca954x_id);
+ 
++#ifdef CONFIG_OF
+ static const struct of_device_id pca954x_of_match[] = {
+ 	{ .compatible = "nxp,pca9540", .data = &chips[pca_9540] },
+ 	{ .compatible = "nxp,pca9542", .data = &chips[pca_9542] },
+ 	{ .compatible = "nxp,pca9543", .data = &chips[pca_9543] },
+ 	{ .compatible = "nxp,pca9544", .data = &chips[pca_9544] },
+ 	{ .compatible = "nxp,pca9545", .data = &chips[pca_9545] },
+-	{ .compatible = "nxp,pca9546", .data = &chips[pca_9546] },
++	{ .compatible = "nxp,pca9546", .data = &chips[pca_9545] },
+ 	{ .compatible = "nxp,pca9547", .data = &chips[pca_9547] },
+ 	{ .compatible = "nxp,pca9548", .data = &chips[pca_9548] },
+-	{ .compatible = "nxp,pca9846", .data = &chips[pca_9846] },
+-	{ .compatible = "nxp,pca9847", .data = &chips[pca_9847] },
+-	{ .compatible = "nxp,pca9848", .data = &chips[pca_9848] },
+-	{ .compatible = "nxp,pca9849", .data = &chips[pca_9849] },
+ 	{}
+ };
+-MODULE_DEVICE_TABLE(of, pca954x_of_match);
++#endif
+ 
+ /* Write to mux register. Don't use i2c_transfer()/i2c_smbus_xfer()
+    for this as they will try to lock adapter a second time */
+ static int pca954x_reg_write(struct i2c_adapter *adap,
+ 			     struct i2c_client *client, u8 val)
+ {
+-	union i2c_smbus_data dummy;
++	int ret = -ENODEV;
+ 
+-	return __i2c_smbus_xfer(adap, client->addr, client->flags,
+-				I2C_SMBUS_WRITE, val,
+-				I2C_SMBUS_BYTE, &dummy);
+-}
++	if (adap->algo->master_xfer) {
++		struct i2c_msg msg;
++		char buf[1];
++
++		msg.addr = client->addr;
++		msg.flags = 0;
++		msg.len = 1;
++		buf[0] = val;
++		msg.buf = buf;
++		ret = __i2c_transfer(adap, &msg, 1);
+ 
+-static u8 pca954x_regval(struct pca954x *data, u8 chan)
+-{
+-	/* We make switches look like muxes, not sure how to be smarter. */
+-	if (data->chip->muxtype == pca954x_ismux)
+-		return chan | data->chip->enable;
+-	else
+-		return 1 << chan;
++		if (ret >= 0 && ret != 1)
++			ret = -EREMOTEIO;
++	} else {
++		union i2c_smbus_data data;
++		ret = adap->algo->smbus_xfer(adap, client->addr,
++					     client->flags,
++					     I2C_SMBUS_WRITE,
++					     val, I2C_SMBUS_BYTE, &data);
++	}
++
++	return ret;
+ }
+ 
+ static int pca954x_select_chan(struct i2c_mux_core *muxc, u32 chan)
+ {
+ 	struct pca954x *data = i2c_mux_priv(muxc);
+ 	struct i2c_client *client = data->client;
++	const struct chip_desc *chip = data->chip;
+ 	u8 regval;
+ 	int ret = 0;
+ 
+-	regval = pca954x_regval(data, chan);
++	/* we make switches look like muxes, not sure how to be smarter */
++	if (chip->muxtype == pca954x_ismux)
++		regval = chan | chip->enable;
++	else
++		regval = 1 << chan;
++
+ 	/* Only select the channel if its different from the last channel */
+ 	if (data->last_chan != regval) {
+ 		ret = pca954x_reg_write(muxc->parent, client, regval);
+@@ -275,160 +200,13 @@
+ {
+ 	struct pca954x *data = i2c_mux_priv(muxc);
+ 	struct i2c_client *client = data->client;
+-	s32 idle_state;
+-
+-	idle_state = READ_ONCE(data->idle_state);
+-	if (idle_state >= 0)
+-		/* Set the mux back to a predetermined channel */
+-		return pca954x_select_chan(muxc, idle_state);
+-
+-	if (idle_state == MUX_IDLE_DISCONNECT) {
+-		/* Deselect active channel */
+-		data->last_chan = 0;
+-		return pca954x_reg_write(muxc->parent, client,
+-					 data->last_chan);
+-	}
+-
+-	/* otherwise leave as-is */
+-
+-	return 0;
+-}
+-
+-static ssize_t idle_state_show(struct device *dev,
+-				    struct device_attribute *attr,
+-				    char *buf)
+-{
+-	struct i2c_client *client = to_i2c_client(dev);
+-	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+-	struct pca954x *data = i2c_mux_priv(muxc);
+-
+-	return sprintf(buf, "%d\n", READ_ONCE(data->idle_state));
+-}
+ 
+-static ssize_t idle_state_store(struct device *dev,
+-				struct device_attribute *attr,
+-				const char *buf, size_t count)
+-{
+-	struct i2c_client *client = to_i2c_client(dev);
+-	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+-	struct pca954x *data = i2c_mux_priv(muxc);
+-	int val;
+-	int ret;
+-
+-	ret = kstrtoint(buf, 0, &val);
+-	if (ret < 0)
+-		return ret;
+-
+-	if (val != MUX_IDLE_AS_IS && val != MUX_IDLE_DISCONNECT &&
+-	    (val < 0 || val >= data->chip->nchans))
+-		return -EINVAL;
+-
+-	i2c_lock_bus(muxc->parent, I2C_LOCK_SEGMENT);
+-
+-	WRITE_ONCE(data->idle_state, val);
+-	/*
+-	 * Set the mux into a state consistent with the new
+-	 * idle_state.
+-	 */
+-	if (data->last_chan || val != MUX_IDLE_DISCONNECT)
+-		ret = pca954x_deselect_mux(muxc, 0);
+-
+-	i2c_unlock_bus(muxc->parent, I2C_LOCK_SEGMENT);
+-
+-	return ret < 0 ? ret : count;
+-}
+-
+-static DEVICE_ATTR_RW(idle_state);
+-
+-static irqreturn_t pca954x_irq_handler(int irq, void *dev_id)
+-{
+-	struct pca954x *data = dev_id;
+-	unsigned long pending;
+-	int ret, i;
+-
+-	ret = i2c_smbus_read_byte(data->client);
+-	if (ret < 0)
+-		return IRQ_NONE;
+-
+-	pending = (ret >> PCA954X_IRQ_OFFSET) & (BIT(data->chip->nchans) - 1);
+-	for_each_set_bit(i, &pending, data->chip->nchans)
+-		handle_nested_irq(irq_linear_revmap(data->irq, i));
+-
+-	return IRQ_RETVAL(pending);
+-}
+-
+-static int pca954x_irq_set_type(struct irq_data *idata, unsigned int type)
+-{
+-	if ((type & IRQ_TYPE_SENSE_MASK) != IRQ_TYPE_LEVEL_LOW)
+-		return -EINVAL;
+-	return 0;
+-}
+-
+-static struct irq_chip pca954x_irq_chip = {
+-	.name = "i2c-mux-pca954x",
+-	.irq_set_type = pca954x_irq_set_type,
+-};
+-
+-static int pca954x_irq_setup(struct i2c_mux_core *muxc)
+-{
+-	struct pca954x *data = i2c_mux_priv(muxc);
+-	struct i2c_client *client = data->client;
+-	int c, irq;
+-
+-	if (!data->chip->has_irq || client->irq <= 0)
++	if (!(data->deselect & (1 << chan)))
+ 		return 0;
+ 
+-	raw_spin_lock_init(&data->lock);
+-
+-	data->irq = irq_domain_add_linear(client->dev.of_node,
+-					  data->chip->nchans,
+-					  &irq_domain_simple_ops, data);
+-	if (!data->irq)
+-		return -ENODEV;
+-
+-	for (c = 0; c < data->chip->nchans; c++) {
+-		irq = irq_create_mapping(data->irq, c);
+-		if (!irq) {
+-			dev_err(&client->dev, "failed irq create map\n");
+-			return -EINVAL;
+-		}
+-		irq_set_chip_data(irq, data);
+-		irq_set_chip_and_handler(irq, &pca954x_irq_chip,
+-			handle_simple_irq);
+-	}
+-
+-	return 0;
+-}
+-
+-static void pca954x_cleanup(struct i2c_mux_core *muxc)
+-{
+-	struct pca954x *data = i2c_mux_priv(muxc);
+-	int c, irq;
+-
+-	if (data->irq) {
+-		for (c = 0; c < data->chip->nchans; c++) {
+-			irq = irq_find_mapping(data->irq, c);
+-			irq_dispose_mapping(irq);
+-		}
+-		irq_domain_remove(data->irq);
+-	}
+-	i2c_mux_del_adapters(muxc);
+-}
+-
+-static int pca954x_init(struct i2c_client *client, struct pca954x *data)
+-{
+-	int ret;
+-
+-	if (data->idle_state >= 0)
+-		data->last_chan = pca954x_regval(data, data->idle_state);
+-	else
+-		data->last_chan = 0; /* Disconnect multiplexer */
+-
+-	ret = i2c_smbus_write_byte(client, data->last_chan);
+-	if (ret < 0)
+-		data->last_chan = 0;
+-
+-	return ret;
++	/* Deselect active channel */
++	data->last_chan = 0;
++	return pca954x_reg_write(muxc->parent, client, data->last_chan);
+ }
+ 
+ /*
+@@ -437,21 +215,24 @@
+ static int pca954x_probe(struct i2c_client *client,
+ 			 const struct i2c_device_id *id)
+ {
+-	struct i2c_adapter *adap = client->adapter;
+-	struct device *dev = &client->dev;
++	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
+ 	struct pca954x_platform_data *pdata = dev_get_platdata(&client->dev);
++	struct device_node *of_node = client->dev.of_node;
++	bool idle_disconnect_dt;
+ 	struct gpio_desc *gpio;
++	int num, force, class;
+ 	struct i2c_mux_core *muxc;
+ 	struct pca954x *data;
+-	int num, force, class;
+-	int ret, err;
++	const struct of_device_id *match;
++	int ret;
+ 	bool fskip = false;
+ 	int force_bus = 0;
+ 
+ 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE))
+ 		return -ENODEV;
+ 
+-	muxc = i2c_mux_alloc(adap, dev, PCA954X_MAX_NCHANS, sizeof(*data), 0,
++	muxc = i2c_mux_alloc(adap, &client->dev,
++			     PCA954X_MAX_NCHANS, sizeof(*data), 0,
+ 			     pca954x_select_chan, pca954x_deselect_mux);
+ 	if (!muxc)
+ 		return -ENOMEM;
+@@ -494,16 +275,10 @@
+ 		}
+ 	}
+ 
+-	/* Reset the mux if a reset GPIO is specified. */
+-	gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
++	/* Get the mux out of reset if a reset GPIO is specified. */
++	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+ 	if (IS_ERR(gpio))
+ 		return PTR_ERR(gpio);
+-	if (gpio) {
+-		udelay(1);
+-		gpiod_set_value_cansleep(gpio, 0);
+-		/* Give the chip some time to recover. */
+-		udelay(1);
+-	}
+ 
+ 
+ 	if (of_property_read_u32(client->dev.of_node, "force_bus_start",
+@@ -525,51 +300,26 @@
+ 		goto pca954x_probe_skip_detect;
+ 	}
+ 
++	/* Write the mux register at addr to verify
++	 * that the mux is in fact present. This also
++	 * initializes the mux to disconnected state.
++	 */
++	if (i2c_smbus_write_byte(client, 0) < 0) {
++		dev_warn(&client->dev, "probe failed\n");
++		return -ENODEV;
++	}
++
+ pca954x_probe_skip_detect:
+-	data->chip = device_get_match_data(dev);
+-	if (!data->chip)
++	match = of_match_device(of_match_ptr(pca954x_of_match), &client->dev);
++	if (match)
++		data->chip = of_device_get_match_data(&client->dev);
++	else
+ 		data->chip = &chips[id->driver_data];
+ 
+ 	data->last_chan = 0;		   /* force the first selection */
+ 
+-	if (data->chip->id.manufacturer_id != I2C_DEVICE_ID_NONE) {
+-		struct i2c_device_identity id;
+-
+-		ret = i2c_get_device_id(client, &id);
+-		if (ret && ret != -EOPNOTSUPP)
+-			return ret;
+-
+-		if (!ret &&
+-		    (id.manufacturer_id != data->chip->id.manufacturer_id ||
+-		     id.part_id != data->chip->id.part_id)) {
+-			dev_warn(dev, "unexpected device id %03x-%03x-%x\n",
+-				 id.manufacturer_id, id.part_id,
+-				 id.die_revision);
+-			return -ENODEV;
+-		}
+-	}
+-
+-	data->idle_state = MUX_IDLE_AS_IS;
+-	if (device_property_read_u32(dev, "idle-state", &data->idle_state)) {
+-		if (device_property_read_bool(dev, "i2c-mux-idle-disconnect"))
+-			data->idle_state = MUX_IDLE_DISCONNECT;
+-	}
+-
+-	/*
+-	 * Write the mux register at addr to verify
+-	 * that the mux is in fact present. This also
+-	 * initializes the mux to a channel
+-	 * or disconnected state.
+-	 */
+-	ret = pca954x_init(client, data);
+-	if (ret < 0) {
+-		dev_warn(dev, "probe failed\n");
+-		goto fail_cleanup;
+-	}
+-
+-	ret = pca954x_irq_setup(muxc);
+-	if (ret)
+-		goto fail_cleanup;
++	idle_disconnect_dt = of_node &&
++		of_property_read_bool(of_node, "i2c-mux-idle-disconnect");
+ 
+ 	/* Now create an adapter for each channel */
+ 	for (num = 0; num < data->chip->nchans; num++) {
+@@ -577,6 +327,7 @@
+ 
+ 		force = 0;			  /* dynamic adap number */
+ 		class = 0;			  /* no class by default */
++
+ 		if (force_bus)
+ 			force = force_bus + num;
+ 
+@@ -593,49 +344,28 @@
+ 		if (client->dev.of_node)
+ 			idle_disconnect_pd = true;
+ 
+-		data->idle_state |= (idle_disconnect_pd ||
+-				   data->idle_state) << num;
++		data->deselect |= (idle_disconnect_pd ||
++				   idle_disconnect_dt) << num;
++
+ 		ret = i2c_mux_add_adapter(muxc, force, num, class);
+-		if (ret)
+-			goto fail_cleanup;
+-	}
+ 
+-	if (data->irq) {
+-		ret = devm_request_threaded_irq(dev, data->client->irq,
+-						NULL, pca954x_irq_handler,
+-						IRQF_ONESHOT | IRQF_SHARED,
+-						"pca954x", data);
+-		if (ret)
+-			goto fail_cleanup;
++		if (ret) {
++			dev_err(&client->dev,
++				"failed to register multiplexed adapter"
++				" %d as bus %d\n", num, force);
++			goto virt_reg_failed;
++		}
+ 	}
+ 
+-	/*
+-	 * The attr probably isn't going to be needed in most cases,
+-	 * so don't fail completely on error.
+-	 */
+-	device_create_file(dev, &dev_attr_idle_state);
+-
+-	dev_info(dev, "registered %d multiplexed busses for I2C %s %s\n",
++	dev_info(&client->dev,
++		 "registered %d multiplexed busses for I2C %s %s\n",
+ 		 num, data->chip->muxtype == pca954x_ismux
+ 				? "mux" : "switch", client->name);
+ 
+ 	return 0;
+ 
+-fail_cleanup:
+-	/* Disable vcc regulator for pca954x */
+-	if (data->vcc_reg) {
+-		err = regulator_disable(data->vcc_reg);
+-		if (err < 0)
+-			dev_err(&client->dev, "failed to disable vcc\n");
+-	}
+-	/* Disable vcc-pullup regulator for pca954x */
+-	if (data->pullup_reg) {
+-		err = regulator_disable(data->pullup_reg);
+-		if (err < 0)
+-			dev_err(&client->dev, "failed to disable vcc-pullup\n");
+-	}
+-
+-	pca954x_cleanup(muxc);
++virt_reg_failed:
++	i2c_mux_del_adapters(muxc);
+ 	return ret;
+ }
+ 
+@@ -643,9 +373,7 @@
+ {
+ 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+ 
+-	device_remove_file(&client->dev, &dev_attr_idle_state);
+-
+-	pca954x_cleanup(muxc);
++	i2c_mux_del_adapters(muxc);
+ 	return 0;
+ }
+ 
+@@ -655,13 +383,9 @@
+ 	struct i2c_client *client = to_i2c_client(dev);
+ 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+ 	struct pca954x *data = i2c_mux_priv(muxc);
+-	int ret;
+ 
+-	ret = pca954x_init(client, data);
+-	if (ret < 0)
+-		dev_err(&client->dev, "failed to verify mux presence\n");
+-
+-	return ret;
++	data->last_chan = 0;
++	return i2c_smbus_write_byte(client, 0);
+ }
+ #endif
+ 
+@@ -671,7 +395,7 @@
+ 	.driver		= {
+ 		.name	= "pca954x",
+ 		.pm	= &pca954x_pm,
+-		.of_match_table = pca954x_of_match,
++		.of_match_table = of_match_ptr(pca954x_of_match),
+ 	},
+ 	.probe		= pca954x_probe,
+ 	.remove		= pca954x_remove,
+diff -Naur kernel/kernel-5.10/drivers/i2c/muxes/pca954x.h kernel_new/kernel-5.10/drivers/i2c/muxes/pca954x.h
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/drivers/i2c/muxes/pca954x.h	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/kernel-5.10/drivers/i2c/muxes/pca954x.h	2022-10-31 00:58:59.909507110 -0700
+@@ -0,0 +1,48 @@
++/*
++ *
++ * pca954x.h - I2C multiplexer/switch support
++ *
++ * Copyright (c) 2008-2022 Rodolfo Giometti <giometti@linux.it>
++ * Copyright (c) 2008-2022 Eurotech S.p.A. <info@eurotech.it>
++ * Michael Lawnick <michael.lawnick.ext@nsn.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ */
++
++
++#ifndef _LINUX_I2C_PCA954X_H
++#define _LINUX_I2C_PCA954X_H
++
++/* Platform data for the PCA954x I2C multiplexers */
++
++/* Per channel initialisation data:
++ * @adap_id: bus number for the adapter. 0 = don't care
++ * @deselect_on_exit: set this entry to 1, if your H/W needs deselection
++ *                    of this channel after transaction.
++ *
++ */
++struct pca954x_platform_mode {
++	int		adap_id;
++	unsigned int	deselect_on_exit:1;
++	unsigned int	class;
++};
++
++/* Per mux/switch data, used with i2c_register_board_info */
++struct pca954x_platform_data {
++	struct pca954x_platform_mode *modes;
++	int num_modes;
++};
++
++#endif /* _LINUX_I2C_PCA954X_H */
+diff -Naur kernel/nvidia/drivers/media/i2c/imx264.c kernel_new/nvidia/drivers/media/i2c/imx264.c
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/imx264.c	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/imx264.c	2022-10-31 00:57:58.063591837 -0700
+@@ -0,0 +1,611 @@
++/*
++ * imx264.c - imx264 sensor driver
++ *
++ * Copyright (c) 2016-2022, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (C) 2022, Leopard  <leopard@leopardimaging.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <linux/slab.h>
++#include <linux/uaccess.h>
++#include <linux/gpio.h>
++#include <linux/module.h>
++#include <linux/seq_file.h>
++#include <linux/of.h>
++#include <linux/of_device.h>
++#include <linux/of_gpio.h>
++
++#include <media/tegra_v4l2_camera.h>
++#include <media/tegracam_core.h>
++#include "imx264_mode_tbls.h"
++
++#define IMX264_FRAME_LENGTH_MODE0		0x0828
++#define IMX264_FRAME_LENGTH_MODE1		0x0619
++#define IMX264_FRAME_LENGTH_MODE2		0x0356
++/* shs msb coarse time */
++#define IMX264_COARSE_TIME_SHS_ADDR_MSB        	0x308F
++/* shs mid coarse time */
++#define IMX264_COARSE_TIME_SHS_ADDR_MID        	0x308E
++/* shs lsb coarse time */
++#define IMX264_COARSE_TIME_SHS_ADDR_LSB        	0x308D
++#define IMX264_GAIN_ADDR_MSR			0x3205
++#define IMX264_GAIN_ADDR_LSR			0x3204
++#define IMX264_FRAME_LENGTH_ADDR_MSB		0x3012
++#define IMX264_FRAME_LENGTH_ADDR_MID		0x3011
++#define IMX264_FRAME_LENGTH_ADDR_LSB		0x3010
++
++extern int imx264_fpga_write_reg(struct device *dev, u8 addr, u8 val, int video_num);
++extern int reset_control_write_reg(u8 reg, u8 val);
++
++static const struct of_device_id imx264_of_match[] = {
++	{ .compatible = "nvidia,imx264",},
++	{ },
++};
++MODULE_DEVICE_TABLE(of, imx264_of_match);
++
++static const u32 ctrl_cid_list[] = {
++	TEGRA_CAMERA_CID_GAIN,
++	TEGRA_CAMERA_CID_EXPOSURE,
++	TEGRA_CAMERA_CID_FRAME_RATE,
++	TEGRA_CAMERA_CID_SENSOR_MODE_ID,
++};
++
++struct imx264 {
++	struct i2c_client		*i2c_client;
++	struct v4l2_subdev		*subdev;
++	u32				frame_length;
++	struct camera_common_data	*s_data;
++	struct tegracam_device		*tc_dev;
++	struct device			*fpga_dev;
++	u32				fpga_index;
++};
++
++static const struct regmap_config sensor_regmap_config = {
++	.reg_bits = 16,
++	.val_bits = 8,
++	.cache_type = REGCACHE_RBTREE,
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
++	.use_single_rw = true,
++#else
++	.use_single_read = true,
++	.use_single_write = true,
++#endif
++};
++
++static inline void imx264_get_frame_length_regs(imx264_reg *regs,
++				u32 frame_length)
++{
++	regs->addr = IMX264_FRAME_LENGTH_ADDR_MSB;
++	regs->val = (frame_length >> 16) & 0xff;
++
++	(regs + 1)->addr = IMX264_FRAME_LENGTH_ADDR_MID;
++	(regs + 1)->val = (frame_length >> 8) & 0xff;
++
++	(regs + 2)->addr = IMX264_FRAME_LENGTH_ADDR_LSB;
++	(regs + 2)->val = (frame_length) & 0xff;
++}
++
++static inline void imx264_get_coarse_time_regs_shs(imx264_reg *regs,
++				u32 coarse_time)
++{
++	regs->addr = IMX264_COARSE_TIME_SHS_ADDR_MSB;
++	regs->val = (coarse_time >> 16) & 0x01;
++
++	(regs + 1)->addr = IMX264_COARSE_TIME_SHS_ADDR_MID;
++	(regs + 1)->val = (coarse_time >> 8) & 0xff;
++
++	(regs + 2)->addr = IMX264_COARSE_TIME_SHS_ADDR_LSB;
++	(regs + 2)->val = (coarse_time) & 0xff;
++}
++
++
++static inline void imx264_get_gain_reg(imx264_reg *regs,
++				u16 gain)
++{
++	regs->addr = IMX264_GAIN_ADDR_MSR;
++	regs->val = (gain >> 8) & 0xf;
++
++	(regs + 1)->addr = IMX264_GAIN_ADDR_LSR;
++	(regs + 1)->val = (gain) & 0xff;
++
++}
++
++static inline int imx264_read_reg(struct camera_common_data *s_data,
++				u16 addr, u8 *val)
++{
++	int err = 0;
++	u32 reg_val = 0;
++
++	err = regmap_read(s_data->regmap, addr, &reg_val);
++	*val = reg_val & 0xFF;
++
++	return err;
++}
++
++static int imx264_write_reg(struct camera_common_data *s_data,
++				u16 addr, u8 val)
++{
++	int err;
++	struct device *dev = s_data->dev;
++
++	err = regmap_write(s_data->regmap, addr, val);
++	if (err)
++		dev_err(dev, "%s: i2c write failed, 0x%x = %x\n",
++			__func__, addr, val);
++
++	return err;
++}
++
++static int imx264_write_table(struct imx264 *priv,
++				const imx264_reg table[])
++{
++	struct camera_common_data *s_data = priv->s_data;
++
++	return regmap_util_write_table_8(s_data->regmap,
++					 table,
++					 NULL, 0,
++					 IMX264_TABLE_WAIT_MS,
++					 IMX264_TABLE_END);
++}
++
++static int imx264_set_group_hold(struct tegracam_device *tc_dev, bool val)
++{
++	return 0;
++}
++
++static int imx264_set_gain(struct tegracam_device *tc_dev, s64 val)
++{
++	struct camera_common_data *s_data = tc_dev->s_data;
++	struct device *dev = s_data->dev;
++	int err = 0;
++	imx264_reg reg_list[2];
++	u16 gain;
++	int i = 0;
++	const struct sensor_mode_properties *mode =
++		&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
++
++	/* translate value */
++	gain = (u16)(val * 10 / mode->control_properties.gain_factor);
++	if (gain > 480)
++		gain = 480;
++	dev_dbg(dev, "%s:  gain reg: %d\n",  __func__, gain);
++
++	imx264_get_gain_reg(reg_list, gain);
++
++	for (i = 0; i < 2; i++) {
++		err = imx264_write_reg(s_data, reg_list[i].addr, reg_list[i].val);
++		if (err)
++			goto fail;
++	}
++	return 0;
++fail:
++	dev_dbg(dev, "%s: GAIN control error\n", __func__);
++	return 0;
++}
++
++static int imx264_set_frame_rate(struct tegracam_device *tc_dev, s64 val)
++{
++	return 0;
++}
++
++static int imx264_set_exposure(struct tegracam_device *tc_dev, s64 val)
++{
++	struct camera_common_data *s_data = tc_dev->s_data;
++	struct device *dev = tc_dev->dev;
++	const struct sensor_mode_properties *mode =
++		&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
++	int err = 0;
++	imx264_reg reg_list[3];
++	u32 coarse_time_shs;
++	u32 reg_shs;
++	int i;
++	u32 frame_length;
++
++	coarse_time_shs = mode->signal_properties.pixel_clock.val *
++		val / mode->image_properties.line_length /
++		mode->control_properties.exposure_factor;
++
++	if (s_data->mode_prop_idx == 0)
++		frame_length = IMX264_FRAME_LENGTH_MODE0;
++	else if (s_data->mode_prop_idx == 1)
++		frame_length = IMX264_FRAME_LENGTH_MODE1;
++	else
++		frame_length = IMX264_FRAME_LENGTH_MODE2;
++
++	if (coarse_time_shs >=  frame_length-10)
++		coarse_time_shs = frame_length - 10;
++	else if (coarse_time_shs <= 10)
++		coarse_time_shs = 10;
++
++	reg_shs = frame_length - coarse_time_shs - 1;
++	dev_dbg(dev, "%s: val: %lld [us], coarse_time: %d [lines]\n",
++		__func__, val, coarse_time_shs);
++
++	imx264_get_coarse_time_regs_shs(reg_list, reg_shs);
++
++	for (i = 0; i < 3; i++) {
++		err = imx264_write_reg(s_data, reg_list[i].addr, reg_list[i].val);
++		if (err) {
++			dev_dbg(dev,
++				"%s: coarse_time control error\n", __func__);
++			return 0;
++		}
++	}
++
++	return 0;
++}
++
++static struct tegracam_ctrl_ops imx264_ctrl_ops = {
++	.numctrls = ARRAY_SIZE(ctrl_cid_list),
++	.ctrl_cid_list = ctrl_cid_list,
++	.set_gain = imx264_set_gain,
++	.set_exposure = imx264_set_exposure,
++	.set_frame_rate = imx264_set_frame_rate,
++	.set_group_hold = imx264_set_group_hold,
++};
++
++static int imx264_power_on(struct camera_common_data *s_data)
++{
++	int err = 0;
++	struct camera_common_power_rail *pw = s_data->power;
++	struct camera_common_pdata *pdata = s_data->pdata;
++	struct device *dev = s_data->dev;
++
++	if (pdata && pdata->power_on) {
++		err = pdata->power_on(pw);
++		if (err)
++			dev_err(dev, "%s failed.\n", __func__);
++		else
++			pw->state = SWITCH_ON;
++		return err;
++	}
++
++	pw->state = SWITCH_ON;
++	return 0;
++
++}
++
++static int imx264_power_off(struct camera_common_data *s_data)
++{
++	int err = 0;
++	struct camera_common_power_rail *pw = s_data->power;
++	struct camera_common_pdata *pdata = s_data->pdata;
++	struct device *dev = s_data->dev;
++
++	dev_dbg(dev, "%s: power off\n", __func__);
++
++	if (pdata && pdata->power_off) {
++		err = pdata->power_off(pw);
++		if (!err)
++			goto power_off_done;
++		else
++			dev_err(dev, "%s failed.\n", __func__);
++		return err;
++	}
++
++power_off_done:
++
++	pw->state = SWITCH_OFF;
++
++	return 0;
++}
++
++static int imx264_power_get(struct tegracam_device *tc_dev)
++{
++	struct device *dev = tc_dev->dev;
++	struct camera_common_data *s_data = tc_dev->s_data;
++	struct camera_common_power_rail *pw = s_data->power;
++	struct camera_common_pdata *pdata = s_data->pdata;
++	const char *mclk_name;
++	struct clk *parent;
++	int err = 0;
++
++	mclk_name = pdata->mclk_name ?
++		    pdata->mclk_name : "extperiph1";
++	pw->mclk = devm_clk_get(dev, mclk_name);
++	if (IS_ERR(pw->mclk)) {
++		dev_err(dev, "unable to get clock %s\n", mclk_name);
++		return PTR_ERR(pw->mclk);
++	}
++
++	parent = devm_clk_get(dev, "pllp_grtba");
++	if (IS_ERR(parent))
++		dev_err(dev, "devm_clk_get failed for pllp_grtba");
++	else
++		clk_set_parent(pw->mclk, parent);
++
++	pw->state = SWITCH_OFF;
++	return err;
++}
++
++static int imx264_power_put(struct tegracam_device *tc_dev)
++{
++	struct camera_common_data *s_data = tc_dev->s_data;
++	struct camera_common_power_rail *pw = s_data->power;
++
++	if (unlikely(!pw))
++		return -EFAULT;
++
++	return 0;
++}
++
++static struct camera_common_pdata *imx264_parse_dt(struct tegracam_device *tc_dev)
++{
++	struct device *dev = tc_dev->dev;
++	struct device_node *np = dev->of_node;
++	struct camera_common_pdata *board_priv_pdata;
++	const struct of_device_id *match;
++	int err;
++
++	if (!np)
++		return NULL;
++
++	match = of_match_device(imx264_of_match, dev);
++	if (!match) {
++		dev_err(dev, "Failed to find matching dt id\n");
++		return NULL;
++	}
++
++	board_priv_pdata = devm_kzalloc(dev,
++					sizeof(*board_priv_pdata), GFP_KERNEL);
++	if (!board_priv_pdata)
++		return NULL;
++
++	err = of_property_read_string(np, "mclk",
++				      &board_priv_pdata->mclk_name);
++	if (err)
++		dev_err(dev, "mclk not in DT\n");
++
++	return board_priv_pdata;
++}
++
++static int imx264_set_mode(struct tegracam_device *tc_dev)
++{
++	struct imx264 *priv = (struct imx264 *)tegracam_get_privdata(tc_dev);
++	struct camera_common_data *s_data = tc_dev->s_data;
++	struct device *dev = tc_dev->dev;
++	const struct of_device_id *match;
++	int err;
++
++	match = of_match_device(imx264_of_match, dev);
++	if (!match) {
++		dev_err(dev, "Failed to find matching dt id\n");
++		return -EINVAL;
++	}
++
++	reset_control_write_reg(priv->fpga_index+1, 0x00);
++	usleep_range(1000, 1010);
++	reset_control_write_reg(priv->fpga_index+1, 0x01);
++	usleep_range(1000, 1010);
++
++	err = imx264_write_table(priv, mode_table[s_data->mode_prop_idx]);
++	if (err)
++		return err;
++
++	return 0;
++}
++
++static int imx264_start_streaming(struct tegracam_device *tc_dev)
++{
++	struct imx264 *priv = (struct imx264 *)tegracam_get_privdata(tc_dev);
++	int err;
++	struct camera_common_data *s_data = tc_dev->s_data;
++	const struct sensor_mode_properties *mode =
++		&s_data->sensor_props.sensor_modes[s_data->mode];
++
++	imx264_fpga_write_reg(priv->fpga_dev, 0x03, 0x00, priv->fpga_index);
++	imx264_fpga_write_reg(priv->fpga_dev, 0x01, (((mode->image_properties.width * 12 / 8) >> 8) & 0xff), priv->fpga_index);
++	imx264_fpga_write_reg(priv->fpga_dev, 0x02, ((mode->image_properties.width * 12 / 8) & 0xff), priv->fpga_index);
++
++	if (priv->fpga_index == 0)
++		err = imx264_write_table(priv, mode_table[IMX264_MODE_START_STREAM]);
++	else
++		err = imx264_write_table(priv, mode_table[IMX264_MODE_START_STREAM_SLAVE]);
++	if (err)
++		return err;
++	msleep(500);
++	imx264_fpga_write_reg(priv->fpga_dev, 0x03, 0x1, priv->fpga_index);
++
++	return 0;
++}
++
++static int imx264_stop_streaming(struct tegracam_device *tc_dev)
++{
++	struct imx264 *priv = (struct imx264 *)tegracam_get_privdata(tc_dev);
++	int err;
++
++	imx264_fpga_write_reg(priv->fpga_dev, 0x03, 0x00, priv->fpga_index);
++
++	err = imx264_write_table(priv, mode_table[IMX264_MODE_STOP_STREAM]);
++	if (err)
++		return err;
++
++	return 0;
++}
++
++
++static struct camera_common_sensor_ops imx264_common_ops = {
++	.numfrmfmts = ARRAY_SIZE(imx264_frmfmt),
++	.frmfmt_table = imx264_frmfmt,
++	.power_on = imx264_power_on,
++	.power_off = imx264_power_off,
++	.write_reg = imx264_write_reg,
++	.read_reg = imx264_read_reg,
++	.parse_dt = imx264_parse_dt,
++	.power_get = imx264_power_get,
++	.power_put = imx264_power_put,
++	.set_mode = imx264_set_mode,
++	.start_streaming = imx264_start_streaming,
++	.stop_streaming = imx264_stop_streaming,
++};
++
++static int imx264_board_setup(struct imx264 *priv)
++{
++	struct camera_common_data *s_data = priv->s_data;
++	struct device *dev = s_data->dev;
++	int err = 0;
++	struct device_node *node = dev->of_node;
++	struct device_node *fpga_node;
++	struct i2c_client *fpga_i2c = NULL;
++
++	dev_dbg(dev, "%s++\n", __func__);
++	err = of_property_read_u32(node, "fpga_index", &priv->fpga_index);
++	if (err)
++		dev_err(dev, "camera_id not found\n");
++	fpga_node = of_parse_phandle(node, "nvidia,fpga-device", 0);
++	if (fpga_node == NULL) {
++		dev_err(dev, "missing %s handle\n", "nvidia,fpga-device");
++	}
++	fpga_i2c = of_find_i2c_device_by_node(fpga_node);
++	of_node_put(fpga_node);
++
++	if (fpga_i2c == NULL) {
++		dev_err(dev, "missing fpga dev handle\n");
++	}
++	if (fpga_i2c->dev.driver == NULL) {
++		dev_err(dev, "missing fpga driver\n");
++	}
++	priv->fpga_dev = &fpga_i2c->dev;
++
++	err = camera_common_mclk_enable(s_data);
++	if (err) {
++		dev_err(dev,
++			"Error %d turning on mclk\n", err);
++		return err;
++	}
++
++	err = imx264_power_on(s_data);
++	if (err) {
++		dev_err(dev,
++			"Error %d during power on sensor\n", err);
++		return err;
++	}
++
++	err = imx264_power_off(s_data);
++	if (err) {
++		dev_err(dev,
++			"Error %d during power off sensor\n", err);
++		return err;
++	}
++	return err;
++}
++
++static int imx264_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
++{
++	struct i2c_client *client = v4l2_get_subdevdata(sd);
++
++	dev_dbg(&client->dev, "%s:\n", __func__);
++
++	return 0;
++}
++
++static const struct v4l2_subdev_internal_ops imx264_subdev_internal_ops = {
++	.open = imx264_open,
++};
++
++static int imx264_probe(struct i2c_client *client,
++			const struct i2c_device_id *id)
++{
++	struct device *dev = &client->dev;
++	struct tegracam_device *tc_dev;
++	struct imx264 *priv;
++	int err;
++
++	dev_info(dev, "probing v4l2 sensor\n");
++
++	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
++		return -EINVAL;
++
++	priv = devm_kzalloc(dev,
++			sizeof(struct imx264), GFP_KERNEL);
++	if (!priv)
++		return -ENOMEM;
++
++	tc_dev = devm_kzalloc(dev,
++			sizeof(struct tegracam_device), GFP_KERNEL);
++	if (!tc_dev)
++		return -ENOMEM;
++
++	priv->i2c_client = tc_dev->client = client;
++	tc_dev->dev = dev;
++	strncpy(tc_dev->name, "imx264", sizeof(tc_dev->name));
++	tc_dev->dev_regmap_config = &sensor_regmap_config;
++	tc_dev->sensor_ops = &imx264_common_ops;
++	tc_dev->v4l2sd_internal_ops = &imx264_subdev_internal_ops;
++	tc_dev->tcctrl_ops = &imx264_ctrl_ops;
++
++	err = tegracam_device_register(tc_dev);
++	if (err) {
++		dev_err(dev, "tegra camera driver registration failed\n");
++		return err;
++	}
++	priv->tc_dev = tc_dev;
++	priv->s_data = tc_dev->s_data;
++	priv->subdev = &tc_dev->s_data->subdev;
++	tegracam_set_privdata(tc_dev, (void *)priv);
++
++	err = imx264_board_setup(priv);
++	if (err) {
++		tegracam_device_unregister(tc_dev);
++		dev_err(dev, "board setup failed\n");
++		return err;
++	}
++
++	reset_control_write_reg(priv->fpga_index+1, 0x01);
++	err = tegracam_v4l2subdev_register(tc_dev, true);
++	if (err) {
++		dev_err(dev, "tegra camera subdev registration failed\n");
++		return err;
++	}
++
++	dev_info(dev, "Detected IMX264 sensor\n");
++
++	return 0;
++}
++
++static int
++imx264_remove(struct i2c_client *client)
++{
++	struct camera_common_data *s_data = to_camera_common_data(&client->dev);
++	struct imx264 *priv = (struct imx264 *)s_data->priv;
++
++	tegracam_v4l2subdev_unregister(priv->tc_dev);
++	tegracam_device_unregister(priv->tc_dev);
++
++	return 0;
++}
++
++static const struct i2c_device_id imx264_id[] = {
++	{ "imx264", 0 },
++	{ }
++};
++
++MODULE_DEVICE_TABLE(i2c, imx264_id);
++
++static struct i2c_driver imx264_i2c_driver = {
++	.driver = {
++		.name = "imx264",
++		.owner = THIS_MODULE,
++		.of_match_table = of_match_ptr(imx264_of_match),
++	},
++	.probe = imx264_probe,
++	.remove = imx264_remove,
++	.id_table = imx264_id,
++};
++
++module_i2c_driver(imx264_i2c_driver);
++
++MODULE_DESCRIPTION("Media Controller driver for Sony IMX264");
++MODULE_AUTHOR("Yi Xu <xy@leopardimaging.com>");
++MODULE_LICENSE("GPL v2");
+diff -Naur kernel/nvidia/drivers/media/i2c/imx264_fpga.c kernel_new/nvidia/drivers/media/i2c/imx264_fpga.c
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/imx264_fpga.c	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/imx264_fpga.c	2022-10-31 00:57:24.646749781 -0700
+@@ -0,0 +1,202 @@
++/*
++ * fpga.c - fpga IO Expander driver
++ *
++ * Copyright (C) 2022, Leopard <leopard@leopardimaging.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <linux/seq_file.h>
++#include <linux/debugfs.h>
++#include <media/camera_common.h>
++#include <linux/module.h>
++
++struct fpga {
++	struct i2c_client *i2c_client;
++	struct regmap *regmap;
++	const char *channel;
++	const char *drive_ic_name;
++	int drive_ic;
++};
++
++struct fpga *gFPGA[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
++
++static int i2c_wr8(struct i2c_client *client, u8 addr, u8 val)
++{
++	int err;
++	struct i2c_msg msg;
++	u8 data[2];
++
++	msg.addr = client->addr;
++	msg.buf = data;
++	msg.len = 2;
++	msg.flags = 0;
++
++	data[0] = addr;
++	data[1] = val;
++
++	err = i2c_transfer(client->adapter, &msg, 1);
++	if (err != 1) {
++		printk("%s: wr8 register failed\n", __func__);
++		return 0;
++	}
++
++	return 0;
++}
++
++int imx264_fpga_write_reg(struct device *dev,
++				u8 addr, u8 val, int video_num)
++{
++	struct fpga *priv = gFPGA[video_num];
++	struct i2c_client *i2c_client = priv->i2c_client;
++	int err;
++
++	err = i2c_wr8(priv->i2c_client, addr, val);
++	if (err)
++		dev_err(&i2c_client->dev, "%s:i2c write failed, 0x%x = %x\n",
++			__func__, addr, val);
++
++	return err;
++}
++EXPORT_SYMBOL(imx264_fpga_write_reg);
++
++static int fpga_stats_show(struct seq_file *s, void *data)
++{
++	return 0;
++}
++
++static int fpga_debugfs_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, fpga_stats_show, inode->i_private);
++}
++
++static ssize_t fpga_debugfs_write(struct file *s,
++				const char __user *user_buf,
++				size_t count, loff_t *ppos)
++{
++	char buf[255];
++	int buf_size;
++
++	if (!user_buf || count <= 1)
++		return -EFAULT;
++
++	memset(buf, 0, sizeof(buf));
++	buf_size = min(count, sizeof(buf) - 1);
++	if (copy_from_user(buf, user_buf, buf_size))
++		return -EFAULT;
++
++	if (buf[0] == 'd') {
++		return count;
++	}
++
++	if (buf[0] == 'n') {
++		return count;
++	}
++
++
++	return count;
++}
++
++
++static const struct file_operations fpga_debugfs_fops = {
++	.open = fpga_debugfs_open,
++	.read = seq_read,
++	.write = fpga_debugfs_write,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
++
++static  struct regmap_config fpga_regmap_config = {
++	.reg_bits = 8,
++	.val_bits = 16,
++	.cache_type = REGCACHE_RBTREE,
++};
++
++static int fpga_probe(struct i2c_client *client,
++				const struct i2c_device_id *id)
++{
++	struct fpga *priv;
++	int err = 0;
++	static int i;
++
++	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
++	gFPGA[i] = priv;
++	i++;
++	priv->i2c_client = client;
++
++	priv->regmap = devm_regmap_init_i2c(priv->i2c_client,
++				&fpga_regmap_config);
++	if (IS_ERR(priv->regmap)) {
++		dev_err(&client->dev,
++			"regmap init failed: %ld\n", PTR_ERR(priv->regmap));
++		return -ENODEV;
++	}
++
++	dev_set_drvdata(&client->dev, priv);
++
++	dev_info(&client->dev, "%s:  success\n", __func__);
++
++	return err;
++}
++
++
++static int
++fpga_remove(struct i2c_client *client)
++{
++
++	if (client != NULL) {
++		i2c_unregister_device(client);
++		client = NULL;
++	}
++
++	return 0;
++}
++
++static const struct i2c_device_id fpga_id[] = {
++	{ "fpga", 0 },
++	{ },
++};
++
++const static struct of_device_id fpga_of_match[] = {
++	{ .compatible = "nvidia,fpga", },
++	{ },
++};
++MODULE_DEVICE_TABLE(i2c, fpga_id);
++
++static struct i2c_driver fpga_i2c_driver = {
++	.driver = {
++		.name = "fpga",
++		.owner = THIS_MODULE,
++	},
++	.probe = fpga_probe,
++	.remove = fpga_remove,
++	.id_table = fpga_id,
++};
++
++static int __init fpga_init(void)
++{
++	return i2c_add_driver(&fpga_i2c_driver);
++}
++
++static void __exit fpga_exit(void)
++{
++	i2c_del_driver(&fpga_i2c_driver);
++}
++
++module_init(fpga_init);
++module_exit(fpga_exit);
++
++MODULE_DESCRIPTION("IO Expander driver fpga");
++MODULE_AUTHOR("Leopard <leopard@leopardimaging.com>");
++MODULE_LICENSE("GPL v2");
++
+diff -Naur kernel/nvidia/drivers/media/i2c/imx264_mode_tbls.h kernel_new/nvidia/drivers/media/i2c/imx264_mode_tbls.h
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/imx264_mode_tbls.h	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/imx264_mode_tbls.h	2022-10-31 00:55:42.153798247 -0700
+@@ -0,0 +1,813 @@
++/*
++ * imx264_mode_tbls.h - imx264 sensor mode tables
++ *
++ * Copyright (c) 2016-2017, NVIDIA CORPORATION.  All rights reserved.
++ * Copyright (C) 2021, Leopard
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++#ifndef __IMX264_I2C_TABLES__
++#define __IMX264_I2C_TABLES__
++
++#include <media/camera_common.h>
++#include <linux/miscdevice.h>
++
++#define IMX264_TABLE_WAIT_MS	0
++#define IMX264_TABLE_END	1
++#define IMX264_MAX_RETRIES	3
++#define IMX264_WAIT_MS_STOP	1
++#define IMX264_WAIT_MS_START	30
++#define IMX264_WAIT_MS_STREAM	210
++#define IMX264_GAIN_TABLE_SIZE 255
++
++/* #define INIT_ET_INSETTING 1 */
++
++#define imx264_reg struct reg_8
++
++static imx264_reg imx264_start[] = {
++	{0x3000, 0x00},
++	{IMX264_TABLE_WAIT_MS, IMX264_WAIT_MS_START},
++	{0x300a, 0x00},
++	{IMX264_TABLE_WAIT_MS, IMX264_WAIT_MS_STREAM},
++	{ IMX264_TABLE_END, 0x00}
++};
++
++static imx264_reg imx264_stop[] = {
++	{0x3000, 0x01},
++	{IMX264_TABLE_WAIT_MS, IMX264_WAIT_MS_STOP},
++	{IMX264_TABLE_END, 0x00 }
++};
++
++static imx264_reg imx264_start_slave[] = {
++	{0x3000, 0x00},
++	{IMX264_TABLE_WAIT_MS, IMX264_WAIT_MS_STREAM},
++	{ IMX264_TABLE_END, 0x00 }
++};
++
++static  imx264_reg imx264_2448x2048_crop_24fps[] = {
++	{0x3001, 0xD0},
++	{0x3002, 0xAA},
++	/*VMAX*/
++	{0x3010, 0x28},
++	{0x3011, 0x08},
++	/*HMAX*/
++	{0x3014, 0xE4},
++	{0x3015, 0x03},
++	{0x3018, 0x01},
++	{0x3023, 0x00},
++	{0x3080, 0x62},
++	/*INCKSEL 37.125MHz*/
++#if 0
++	{0x3089, 0x10},
++	{0x308a, 0x02},
++	{0x308b, 0x10},
++	{0x308c, 0x02},
++#else
++	{0x3089, 0x16},
++	{0x308a, 0x00},
++	{0x308b, 0x16},
++	{0x308c, 0x00},
++#endif
++	{0x309E, 0x08},
++	{0x30A0, 0x04},
++	{0x30AF, 0x0E},
++
++	{0x3168, 0xD8},
++	{0x3169, 0xA0},
++	{0x317D, 0xA1},
++	{0x3180, 0x62},
++	{0x3190, 0x9B},
++	{0x3191, 0xA0},
++	{0x31A4, 0x3F},
++	{0x31A5, 0xB1},
++	{0x31E2, 0x00},
++	{0x31EA, 0x00},
++
++	{0x3226, 0x03},
++	{0x3254, 0xF0},
++	{0x3255, 0x00},
++
++	{0x35AA, 0xB3},
++	{0x35AC, 0x68},
++
++	{0x371C, 0xB4},
++	{0x371D, 0x00},
++	{0x371E, 0xDE},
++	{0x371F, 0x00},
++	{0x3728, 0xB4},
++	{0x3729, 0x00},
++	{0x372A, 0xDE},
++	{0x372B, 0x00},
++	{0x373A, 0x36},
++	{0x3746, 0x36},
++
++	{0x38E0, 0xEB},
++	{0x38E1, 0x00},
++	{0x38E2, 0x0D},
++	{0x38E3, 0x01},
++
++	{0x39C4, 0xEB},
++	{0x39C5, 0x00},
++	{0x39C6, 0x0C},
++	{0x39C7, 0x01},
++
++	{0x3D02, 0x6E},
++	{0x3D04, 0xE3},
++	{0x3D05, 0x00},
++	{0x3D0C, 0x73},
++	{0x3D0E, 0x6E},
++	{0x3D10, 0xE8},
++	{0x3D11, 0x00},
++	{0x3D12, 0xE3},
++	{0x3D13, 0x00},
++	{0x3D14, 0x6B},
++	{0x3D16, 0x1C},
++	{0x3D18, 0x1C},
++	{0x3D1A, 0x6B},
++	{0x3D1C, 0x6E},
++	{0x3D1E, 0x9A},
++	{0x3D20, 0x12},
++	{0x3D22, 0x3E},
++	{0x3D28, 0xB4},
++	{0x3D29, 0x00},
++	{0x3D2A, 0x66},
++	{0x3D34, 0x69},
++	{0x3D36, 0x17},
++	{0x3D38, 0x6A},
++	{0x3D3A, 0x18},
++	{0x3D3E, 0xFF},
++	{0x3D3F, 0x0F},
++	{0x3D46, 0xFF},
++	{0x3D47, 0x0F},
++	{0x3D4E, 0x4C},
++	{0x3D50, 0x50},
++	{0x3D54, 0x73},
++	{0x3D56, 0x6E},
++	{0x3D58, 0xE8},
++	{0x3D59, 0x00},
++	{0x3D5A, 0xCF},
++	{0x3D5B, 0x00},
++	{0x3D5E, 0x64},
++	{0x3D66, 0x61},
++	{0x3D6E, 0x0D},
++	{0x3D70, 0xFF},
++	{0x3D71, 0x0F},
++	{0x3D72, 0x00},
++	{0x3D73, 0x00},
++	{0x3D74, 0x11},
++	{0x3D76, 0x6A},
++	{0x3D78, 0x7F},
++	{0x3D7A, 0xB3},
++	{0x3D7C, 0x29},
++	{0x3D7E, 0x64},
++	{0x3D80, 0xB1},
++	{0x3D82, 0xB3},
++	{0x3D84, 0x62},
++	{0x3D86, 0x64},
++	{0x3D88, 0xB1},
++	{0x3D8A, 0xB3},
++	{0x3D8C, 0x62},
++	{0x3D8E, 0x64},
++	{0x3D90, 0x6D},
++	{0x3D92, 0x65},
++	{0x3D94, 0x65},
++	{0x3D96, 0x6D},
++	{0x3D98, 0x20},
++	{0x3D9A, 0x28},
++	{0x3D9C, 0x81},
++	{0x3D9E, 0x89},
++	{0x3D9F, 0x01},
++	{0x3DA0, 0x66},
++	{0x3DA2, 0x7B},
++	{0x3DA4, 0x21},
++	{0x3DA6, 0x27},
++	{0x3DA8, 0x8B},
++	{0x3DA9, 0x01},
++	{0x3DAA, 0x95},
++	{0x3DAB, 0x01},
++	{0x3DAC, 0x12},
++	{0x3DAE, 0x1C},
++	{0x3DB0, 0x98},
++	{0x3DB1, 0x01},
++	{0x3DB2, 0xA0},
++	{0x3DB3, 0x01},
++	{0x3DB4, 0x13},
++	{0x3DB6, 0x1D},
++	{0x3DB8, 0x99},
++	{0x3DB9, 0x01},
++	{0x3DBA, 0xA1},
++	{0x3DBB, 0x01},
++	{0x3DBC, 0x14},
++	{0x3DBE, 0x1E},
++	{0x3DC0, 0x9A},
++	{0x3DC1, 0x01},
++	{0x3DC2, 0xA2},
++	{0x3DC3, 0x01},
++	{0x3DC4, 0x64},
++	{0x3DC6, 0x6E},
++	{0x3DC8, 0x17},
++	{0x3DCA, 0x26},
++	{0x3DCC, 0x9D},
++	{0x3DCD, 0x01},
++	{0x3DCE, 0xAC},
++	{0x3DCF, 0x01},
++	{0x3DD0, 0x65},
++	{0x3DD2, 0x6F},
++	{0x3DD4, 0x18},
++	{0x3DD6, 0x27},
++	{0x3DD8, 0x9E},
++	{0x3DD9, 0x01},
++	{0x3DDA, 0xAD},
++	{0x3DDB, 0x01},
++	{0x3DDC, 0x66},
++	{0x3DDE, 0x70},
++	{0x3DE0, 0x19},
++	{0x3DE2, 0x28},
++	{0x3DE4, 0x9F},
++	{0x3DE5, 0x01},
++	{0x3DE6, 0xAE},
++	{0x3DE7, 0x01},
++
++	{0x3E04, 0x9D},
++	{0x3E06, 0xB0},
++	{0x3E07, 0x00},
++	{0x3E08, 0x6B},
++	{0x3E0A, 0x7E},
++	{0x3E24, 0xE3},
++	{0x3E25, 0x00},
++	{0x3E26, 0x9A},
++	{0x3E27, 0x01},
++
++	{0x3F20, 0x00},
++	{0x3F21, 0x00},
++	{0x3F22, 0xFF},
++	{0x3F23, 0x3F},
++
++	{0x4003, 0x55},
++	{0x4005, 0xFF},
++	{0x400B, 0x00},
++	{0x400C, 0x54},
++	{0x400E, 0x48},
++	{0x400F, 0xA2},
++	{0x4012, 0x53},
++	{0x4013, 0x0A},
++	{0x4014, 0x0C},
++	{0x4015, 0x0A},
++	{0x402A, 0x7F},
++	{0x402C, 0x29},
++	{0x4030, 0x73},
++	{0x4032, 0x8D},
++	{0x4033, 0x01},
++	{0x4049, 0x02},
++	{0x4056, 0x18},
++	{0x408C, 0x9A},
++	{0x408E, 0xAA},
++	{0x4090, 0x3E},
++	{0x4092, 0x5F},
++	{0x4094, 0x0A},
++	{0x4096, 0x0A},
++	{0x4098, 0x7F},
++	{0x409A, 0xB3},
++	{0x409C, 0x29},
++	{0x409E, 0x64},
++	{0x3300, 0x03},
++	{0x3310, 0x00},
++	{0x3311, 0x00},
++	{0x3312, 0x00},
++	{0x3313, 0x00},
++	{0x3314, 0x90},
++	{0x3315, 0x09},
++
++	{0x3316, 0x00},
++	{0x3317, 0x08},
++	{IMX264_TABLE_END, 0x00}
++};
++
++static  imx264_reg imx264_1224x1028_crop_60fps[] = {
++	{0x3001, 0xD0},
++	{0x3002, 0xAA},
++	{0x300d, 0x11},
++	/*VMAX*/
++	{0x3010, 0x19},
++	{0x3011, 0x06},//0x424
++	/*HMAX*/
++	{0x3014, 0x18},
++	{0x3015, 0x03},
++	{0x3018, 0x01},
++	{0x3023, 0x00},
++	{0x3080, 0x62},
++	/*INCKSEL 37.125MHz*/
++#if 1
++	{0x3089, 0x10},
++	{0x308a, 0x02},
++	{0x308b, 0x10},
++	{0x308c, 0x02},
++#else
++	{0x3089, 0x10},
++	{0x308a, 0x00},
++	{0x308b, 0x10},
++	{0x308c, 0x00},
++#endif
++	{0x309E, 0x08},
++	{0x30A0, 0x04},
++	{0x30AF, 0x0E},
++
++	{0x3168, 0xD8},
++	{0x3169, 0xA0},
++	{0x317D, 0xA1},
++	{0x3180, 0x62},
++	{0x3190, 0x9B},
++	{0x3191, 0xA0},
++	{0x31A4, 0x3F},
++	{0x31A5, 0xB1},
++	{0x31E2, 0x00},
++	{0x31EA, 0x00},
++
++	{0x3226, 0x03},
++	{0x3254, 0xF0},
++	{0x3255, 0x00},
++
++	{0x35AA, 0xB3},
++	{0x35AC, 0x68},
++
++	{0x371C, 0xB4},
++	{0x371D, 0x00},
++	{0x371E, 0xDE},
++	{0x371F, 0x00},
++	{0x3728, 0xB4},
++	{0x3729, 0x00},
++	{0x372A, 0xDE},
++	{0x372B, 0x00},
++	{0x373A, 0x36},
++	{0x3746, 0x36},
++
++	{0x38E0, 0xEB},
++	{0x38E1, 0x00},
++	{0x38E2, 0x0D},
++	{0x38E3, 0x01},
++
++	{0x39C4, 0xEB},
++	{0x39C5, 0x00},
++	{0x39C6, 0x0C},
++	{0x39C7, 0x01},
++
++	{0x3D02, 0x6E},
++	{0x3D04, 0xE3},
++	{0x3D05, 0x00},
++	{0x3D0C, 0x73},
++	{0x3D0E, 0x6E},
++	{0x3D10, 0xE8},
++	{0x3D11, 0x00},
++	{0x3D12, 0xE3},
++	{0x3D13, 0x00},
++	{0x3D14, 0x6B},
++	{0x3D16, 0x1C},
++	{0x3D18, 0x1C},
++	{0x3D1A, 0x6B},
++	{0x3D1C, 0x6E},
++	{0x3D1E, 0x9A},
++	{0x3D20, 0x12},
++	{0x3D22, 0x3E},
++	{0x3D28, 0xB4},
++	{0x3D29, 0x00},
++	{0x3D2A, 0x66},
++	{0x3D34, 0x69},
++	{0x3D36, 0x17},
++	{0x3D38, 0x6A},
++	{0x3D3A, 0x18},
++	{0x3D3E, 0xFF},
++	{0x3D3F, 0x0F},
++	{0x3D46, 0xFF},
++	{0x3D47, 0x0F},
++	{0x3D4E, 0x4C},
++	{0x3D50, 0x50},
++	{0x3D54, 0x73},
++	{0x3D56, 0x6E},
++	{0x3D58, 0xE8},
++	{0x3D59, 0x00},
++	{0x3D5A, 0xCF},
++	{0x3D5B, 0x00},
++	{0x3D5E, 0x64},
++	{0x3D66, 0x61},
++	{0x3D6E, 0x0D},
++	{0x3D70, 0xFF},
++	{0x3D71, 0x0F},
++	{0x3D72, 0x00},
++	{0x3D73, 0x00},
++	{0x3D74, 0x11},
++	{0x3D76, 0x6A},
++	{0x3D78, 0x7F},
++	{0x3D7A, 0xB3},
++	{0x3D7C, 0x29},
++	{0x3D7E, 0x64},
++	{0x3D80, 0xB1},
++	{0x3D82, 0xB3},
++	{0x3D84, 0x62},
++	{0x3D86, 0x64},
++	{0x3D88, 0xB1},
++	{0x3D8A, 0xB3},
++	{0x3D8C, 0x62},
++	{0x3D8E, 0x64},
++	{0x3D90, 0x6D},
++	{0x3D92, 0x65},
++	{0x3D94, 0x65},
++	{0x3D96, 0x6D},
++	{0x3D98, 0x20},
++	{0x3D9A, 0x28},
++	{0x3D9C, 0x81},
++	{0x3D9E, 0x89},
++	{0x3D9F, 0x01},
++	{0x3DA0, 0x66},
++	{0x3DA2, 0x7B},
++	{0x3DA4, 0x21},
++	{0x3DA6, 0x27},
++	{0x3DA8, 0x8B},
++	{0x3DA9, 0x01},
++	{0x3DAA, 0x95},
++	{0x3DAB, 0x01},
++	{0x3DAC, 0x12},
++	{0x3DAE, 0x1C},
++	{0x3DB0, 0x98},
++	{0x3DB1, 0x01},
++	{0x3DB2, 0xA0},
++	{0x3DB3, 0x01},
++	{0x3DB4, 0x13},
++	{0x3DB6, 0x1D},
++	{0x3DB8, 0x99},
++	{0x3DB9, 0x01},
++	{0x3DBA, 0xA1},
++	{0x3DBB, 0x01},
++	{0x3DBC, 0x14},
++	{0x3DBE, 0x1E},
++	{0x3DC0, 0x9A},
++	{0x3DC1, 0x01},
++	{0x3DC2, 0xA2},
++	{0x3DC3, 0x01},
++	{0x3DC4, 0x64},
++	{0x3DC6, 0x6E},
++	{0x3DC8, 0x17},
++	{0x3DCA, 0x26},
++	{0x3DCC, 0x9D},
++	{0x3DCD, 0x01},
++	{0x3DCE, 0xAC},
++	{0x3DCF, 0x01},
++	{0x3DD0, 0x65},
++	{0x3DD2, 0x6F},
++	{0x3DD4, 0x18},
++	{0x3DD6, 0x27},
++	{0x3DD8, 0x9E},
++	{0x3DD9, 0x01},
++	{0x3DDA, 0xAD},
++	{0x3DDB, 0x01},
++	{0x3DDC, 0x66},
++	{0x3DDE, 0x70},
++	{0x3DE0, 0x19},
++	{0x3DE2, 0x28},
++	{0x3DE4, 0x9F},
++	{0x3DE5, 0x01},
++	{0x3DE6, 0xAE},
++	{0x3DE7, 0x01},
++
++	{0x3E04, 0x9D},
++	{0x3E06, 0xB0},
++	{0x3E07, 0x00},
++	{0x3E08, 0x6B},
++	{0x3E0A, 0x7E},
++	{0x3E24, 0xE3},
++	{0x3E25, 0x00},
++	{0x3E26, 0x9A},
++	{0x3E27, 0x01},
++
++	{0x3F20, 0x00},
++	{0x3F21, 0x00},
++	{0x3F22, 0xFF},
++	{0x3F23, 0x3F},
++
++	{0x4003, 0x55},
++	{0x4005, 0xFF},
++	{0x400B, 0x00},
++	{0x400C, 0x54},
++	{0x400E, 0x48},
++	{0x400F, 0xA2},
++	{0x4012, 0x53},
++	{0x4013, 0x0A},
++	{0x4014, 0x0C},
++	{0x4015, 0x0A},
++	{0x402A, 0x7F},
++	{0x402C, 0x29},
++	{0x4030, 0x73},
++	{0x4032, 0x8D},
++	{0x4033, 0x01},
++	{0x4049, 0x02},
++	{0x4056, 0x18},
++	{0x408C, 0x9A},
++	{0x408E, 0xAA},
++	{0x4090, 0x3E},
++	{0x4092, 0x5F},
++	{0x4094, 0x0A},
++	{0x4096, 0x0A},
++	{0x4098, 0x7F},
++	{0x409A, 0xB3},
++	{0x409C, 0x29},
++	{0x409E, 0x64},
++	{0x3300, 0x00},
++	{0x3310, 0x00},
++	{0x3311, 0x00},
++	{0x3312, 0x00},
++	{0x3313, 0x00},
++	{0x3314, 0x90},
++	{0x3315, 0x09},
++
++	{0x3316, 0x00},
++	{0x3317, 0x08},
++	{IMX264_TABLE_END, 0x00}
++};
++
++static  imx264_reg imx264_612x512_crop_60fps[] = {
++	{0x3001, 0xD0},
++	{0x3002, 0xAA},
++	/*VMAX*/
++	{0x3010, 0x56},
++	{0x3011, 0x03},
++	/*HMAX*/
++	{0x3014, 0xE4},
++	{0x3015, 0x03},
++	{0x3018, 0x01},
++	{0x3023, 0x00},
++	{0x3080, 0x62},
++	/*INCKSEL 37.125MHz*/
++#if 0
++	{0x3089, 0x10},
++	{0x308a, 0x02},
++	{0x308b, 0x10},
++	{0x308c, 0x02},
++#else
++	{0x3089, 0x16},
++	{0x308a, 0x00},
++	{0x308b, 0x16},
++	{0x308c, 0x00},
++#endif
++	{0x309E, 0x08},
++	{0x30A0, 0x04},
++	{0x30AF, 0x0E},
++
++	{0x3168, 0xD8},
++	{0x3169, 0xA0},
++	{0x317D, 0xA1},
++	{0x3180, 0x62},
++	{0x3190, 0x9B},
++	{0x3191, 0xA0},
++	{0x31A4, 0x3F},
++	{0x31A5, 0xB1},
++	{0x31E2, 0x00},
++	{0x31EA, 0x00},
++
++	{0x3226, 0x03},
++	{0x3254, 0xF0},
++	{0x3255, 0x00},
++
++	{0x35AA, 0xB3},
++	{0x35AC, 0x68},
++
++	{0x371C, 0xB4},
++	{0x371D, 0x00},
++	{0x371E, 0xDE},
++	{0x371F, 0x00},
++	{0x3728, 0xB4},
++	{0x3729, 0x00},
++	{0x372A, 0xDE},
++	{0x372B, 0x00},
++	{0x373A, 0x36},
++	{0x3746, 0x36},
++
++	{0x38E0, 0xEB},
++	{0x38E1, 0x00},
++	{0x38E2, 0x0D},
++	{0x38E3, 0x01},
++
++	{0x39C4, 0xEB},
++	{0x39C5, 0x00},
++	{0x39C6, 0x0C},
++	{0x39C7, 0x01},
++
++	{0x3D02, 0x6E},
++	{0x3D04, 0xE3},
++	{0x3D05, 0x00},
++	{0x3D0C, 0x73},
++	{0x3D0E, 0x6E},
++	{0x3D10, 0xE8},
++	{0x3D11, 0x00},
++	{0x3D12, 0xE3},
++	{0x3D13, 0x00},
++	{0x3D14, 0x6B},
++	{0x3D16, 0x1C},
++	{0x3D18, 0x1C},
++	{0x3D1A, 0x6B},
++	{0x3D1C, 0x6E},
++	{0x3D1E, 0x9A},
++	{0x3D20, 0x12},
++	{0x3D22, 0x3E},
++	{0x3D28, 0xB4},
++	{0x3D29, 0x00},
++	{0x3D2A, 0x66},
++	{0x3D34, 0x69},
++	{0x3D36, 0x17},
++	{0x3D38, 0x6A},
++	{0x3D3A, 0x18},
++	{0x3D3E, 0xFF},
++	{0x3D3F, 0x0F},
++	{0x3D46, 0xFF},
++	{0x3D47, 0x0F},
++	{0x3D4E, 0x4C},
++	{0x3D50, 0x50},
++	{0x3D54, 0x73},
++	{0x3D56, 0x6E},
++	{0x3D58, 0xE8},
++	{0x3D59, 0x00},
++	{0x3D5A, 0xCF},
++	{0x3D5B, 0x00},
++	{0x3D5E, 0x64},
++	{0x3D66, 0x61},
++	{0x3D6E, 0x0D},
++	{0x3D70, 0xFF},
++	{0x3D71, 0x0F},
++	{0x3D72, 0x00},
++	{0x3D73, 0x00},
++	{0x3D74, 0x11},
++	{0x3D76, 0x6A},
++	{0x3D78, 0x7F},
++	{0x3D7A, 0xB3},
++	{0x3D7C, 0x29},
++	{0x3D7E, 0x64},
++	{0x3D80, 0xB1},
++	{0x3D82, 0xB3},
++	{0x3D84, 0x62},
++	{0x3D86, 0x64},
++	{0x3D88, 0xB1},
++	{0x3D8A, 0xB3},
++	{0x3D8C, 0x62},
++	{0x3D8E, 0x64},
++	{0x3D90, 0x6D},
++	{0x3D92, 0x65},
++	{0x3D94, 0x65},
++	{0x3D96, 0x6D},
++	{0x3D98, 0x20},
++	{0x3D9A, 0x28},
++	{0x3D9C, 0x81},
++	{0x3D9E, 0x89},
++	{0x3D9F, 0x01},
++	{0x3DA0, 0x66},
++	{0x3DA2, 0x7B},
++	{0x3DA4, 0x21},
++	{0x3DA6, 0x27},
++	{0x3DA8, 0x8B},
++	{0x3DA9, 0x01},
++	{0x3DAA, 0x95},
++	{0x3DAB, 0x01},
++	{0x3DAC, 0x12},
++	{0x3DAE, 0x1C},
++	{0x3DB0, 0x98},
++	{0x3DB1, 0x01},
++	{0x3DB2, 0xA0},
++	{0x3DB3, 0x01},
++	{0x3DB4, 0x13},
++	{0x3DB6, 0x1D},
++	{0x3DB8, 0x99},
++	{0x3DB9, 0x01},
++	{0x3DBA, 0xA1},
++	{0x3DBB, 0x01},
++	{0x3DBC, 0x14},
++	{0x3DBE, 0x1E},
++	{0x3DC0, 0x9A},
++	{0x3DC1, 0x01},
++	{0x3DC2, 0xA2},
++	{0x3DC3, 0x01},
++	{0x3DC4, 0x64},
++	{0x3DC6, 0x6E},
++	{0x3DC8, 0x17},
++	{0x3DCA, 0x26},
++	{0x3DCC, 0x9D},
++	{0x3DCD, 0x01},
++	{0x3DCE, 0xAC},
++	{0x3DCF, 0x01},
++	{0x3DD0, 0x65},
++	{0x3DD2, 0x6F},
++	{0x3DD4, 0x18},
++	{0x3DD6, 0x27},
++	{0x3DD8, 0x9E},
++	{0x3DD9, 0x01},
++	{0x3DDA, 0xAD},
++	{0x3DDB, 0x01},
++	{0x3DDC, 0x66},
++	{0x3DDE, 0x70},
++	{0x3DE0, 0x19},
++	{0x3DE2, 0x28},
++	{0x3DE4, 0x9F},
++	{0x3DE5, 0x01},
++	{0x3DE6, 0xAE},
++	{0x3DE7, 0x01},
++
++	{0x3E04, 0x9D},
++	{0x3E06, 0xB0},
++	{0x3E07, 0x00},
++	{0x3E08, 0x6B},
++	{0x3E0A, 0x7E},
++	{0x3E24, 0xE3},
++	{0x3E25, 0x00},
++	{0x3E26, 0x9A},
++	{0x3E27, 0x01},
++
++	{0x3F20, 0x00},
++	{0x3F21, 0x00},
++	{0x3F22, 0xFF},
++	{0x3F23, 0x3F},
++
++	{0x4003, 0x55},
++	{0x4005, 0xFF},
++	{0x400B, 0x00},
++	{0x400C, 0x54},
++	{0x400E, 0x48},
++	{0x400F, 0xA2},
++	{0x4012, 0x53},
++	{0x4013, 0x0A},
++	{0x4014, 0x0C},
++	{0x4015, 0x0A},
++	{0x402A, 0x7F},
++	{0x402C, 0x29},
++	{0x4030, 0x73},
++	{0x4032, 0x8D},
++	{0x4033, 0x01},
++	{0x4049, 0x02},
++	{0x4056, 0x18},
++	{0x408C, 0x9A},
++	{0x408E, 0xAA},
++	{0x4090, 0x3E},
++	{0x4092, 0x5F},
++	{0x4094, 0x0A},
++	{0x4096, 0x0A},
++	{0x4098, 0x7F},
++	{0x409A, 0xB3},
++	{0x409C, 0x29},
++	{0x409E, 0x64},
++	{0x3300, 0x03},
++	{0x3310, 0x90},
++	{0x3311, 0x03},
++	{0x3312, 0x04},
++	{0x3313, 0x03},
++	{0x3314, 0x80},
++	{0x3315, 0x02},
++	{0x3316, 0x00},
++	{0x3317, 0x02},
++	{IMX264_TABLE_END, 0x00}
++};
++
++enum {
++	IMX264_MODE_2448X2048_CROP_24FPS,
++	IMX264_MODE_1224x1028_CROP_60FPS,
++	IMX264_MODE_640x512_CROP_60FPS,
++	IMX264_MODE_START_STREAM,
++	IMX264_MODE_STOP_STREAM,
++	IMX264_MODE_START_STREAM_SLAVE,
++};
++
++static imx264_reg *mode_table[] = {
++	[IMX264_MODE_2448X2048_CROP_24FPS] = imx264_2448x2048_crop_24fps,
++	[IMX264_MODE_1224x1028_CROP_60FPS] = imx264_1224x1028_crop_60fps,
++	[IMX264_MODE_640x512_CROP_60FPS] = imx264_612x512_crop_60fps,
++	[IMX264_MODE_START_STREAM] = imx264_start,
++	[IMX264_MODE_STOP_STREAM] = imx264_stop,
++	[IMX264_MODE_START_STREAM_SLAVE] = imx264_start_slave,
++};
++
++static const int imx264_24fps[] = {
++	24,
++};
++
++static const int imx264_60fps[] = {
++	60,
++};
++
++/*
++ * WARNING: frmfmt ordering need to match mode definition in
++ * device tree!
++ */
++static const struct camera_common_frmfmt imx264_frmfmt[] = {
++	{{2448, 2048}, imx264_24fps, 1, 0,
++			IMX264_MODE_2448X2048_CROP_24FPS},
++	{{1224, 1028}, imx264_60fps, 1, 0,
++			IMX264_MODE_1224x1028_CROP_60FPS},
++	{{640, 512}, imx264_60fps, 1, 0,
++			IMX264_MODE_640x512_CROP_60FPS},
++	/* Add modes with no device tree support after below */
++};
++#endif /* __IMX264_I2C_TABLES__ */
+diff -Naur kernel/nvidia/drivers/media/i2c/Kconfig kernel_new/nvidia/drivers/media/i2c/Kconfig
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/Kconfig	2022-08-10 20:15:42.000000000 -0700
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/Kconfig	2022-10-31 00:55:42.153798247 -0700
+@@ -164,6 +164,33 @@
+ 
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called imx390.
++config NV_VIDEO_RESET
++	tristate "NV_VIDEO_RESET I2C IO Expander"
++	help
++	  If you say yes here you get support for the NV_VIDEO_RESET
++	  I2C IO Expander.
++
++	  To compile this driver as a module, choose M here: the module
++	  will be called NV_VIDEO_RESET.
++
++config NV_VIDEO_IMX264_FPGA
++	tristate "NV_VIDEO_IMX264_FPGA I2C IO Expander"
++	help
++	  If you say yes here you get support for the NV_VIDEO_IMX264_FPGA
++	  I2C IO Expander.
++
++	  To compile this driver as a module, choose M here: the module
++	  will be called IMX264_FPGA.
++
++config NV_VIDEO_IMX264
++	tristate "IMX264 camera sensor support"
++	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && NV_VIDEO_RESET && NV_VIDEO_IMX264_FPGA
++	help
++	  This is a Video4Linux2 sensor-level driver for the Sony
++	  IMX264 camera sensor
++
++	  To compile this driver as a module, choose M here: the module
++	  will be called imx264.
+ 
+ config NV_DESER_MAX96712
+ 
+diff -Naur kernel/nvidia/drivers/media/i2c/Makefile kernel_new/nvidia/drivers/media/i2c/Makefile
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/Makefile	2022-08-10 20:15:42.000000000 -0700
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/Makefile	2022-10-31 00:55:42.153798247 -0700
+@@ -21,5 +21,8 @@
+ obj-$(CONFIG_I2C_IOEXPANDER_SER_MAX9295) += max9295.o
+ obj-$(CONFIG_I2C_IOEXPANDER_DESER_MAX9296) += max9296.o
+ obj-$(CONFIG_NV_VIDEO_IMX390) += nv_imx390.o
++obj-$(CONFIG_NV_VIDEO_RESET) += reset_control.o
++obj-$(CONFIG_NV_VIDEO_IMX264_FPGA) += imx264_fpga.o
++obj-$(CONFIG_NV_VIDEO_IMX264) += imx264.o
+ obj-$(CONFIG_NV_VIDEO_AR0234) += nv_ar0234.o
+ obj-$(CONFIG_NV_DESER_MAX96712) += max96712.o
+diff -Naur kernel/nvidia/drivers/media/i2c/reset_control.c kernel_new/nvidia/drivers/media/i2c/reset_control.c
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/reset_control.c	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/kernel/nvidia/drivers/media/i2c/reset_control.c	2022-10-31 01:00:12.341575829 -0700
+@@ -0,0 +1,224 @@
++/*
++ * reset_control.c - reset_control IO Expander driver
++ *
++ * Copyright (c) 2016-2022, NVIDIA CORPORATION.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++
++#include <linux/seq_file.h>
++#include <linux/debugfs.h>
++#include <media/camera_common.h>
++#include <linux/module.h>
++
++
++
++struct reset_control {
++	struct i2c_client *i2c_client;
++	struct regmap *regmap;
++	const char *channel;
++};
++
++static struct reset_control *priv_global;
++
++int reset_control_write_reg(u8 addr, u8 val)
++{
++	int err;
++	struct i2c_client *i2c_client = priv_global->i2c_client;
++
++	err = regmap_write(priv_global->regmap, addr, val);
++	if (err)
++		dev_err(&i2c_client->dev, "%s:i2c write failed, 0x%x = %x\n",
++			__func__, addr, val);
++
++	return err;
++}
++EXPORT_SYMBOL(reset_control_write_reg);
++
++static int reset_control_stats_show(struct seq_file *s, void *data)
++{
++	return 0;
++}
++
++static int reset_control_debugfs_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, reset_control_stats_show, inode->i_private);
++}
++
++static ssize_t reset_control_debugfs_write(struct file *s,
++				const char __user *user_buf,
++				size_t count, loff_t *ppos)
++{
++	struct reset_control *priv =
++		((struct seq_file *)s->private_data)->private;
++	struct i2c_client *i2c_client = priv->i2c_client;
++
++	char buf[255];
++	int buf_size;
++
++	if (!user_buf || count <= 1)
++		return -EFAULT;
++
++	memset(buf, 0, sizeof(buf));
++	buf_size = min(count, sizeof(buf) - 1);
++	if (copy_from_user(buf, user_buf, buf_size))
++		return -EFAULT;
++
++	if (buf[0] == 'd') {
++		dev_info(&i2c_client->dev, "%s, set daymode\n", __func__);
++		return count;
++	}
++
++	if (buf[0] == 'n') {
++		dev_info(&i2c_client->dev, "%s, set nightmode\n", __func__);
++		return count;
++	}
++
++	dev_err(&i2c_client->dev, "SYNTAX ERROR: %s\n", buf);
++	return count;
++}
++
++
++static const struct file_operations reset_control_debugfs_fops = {
++	.open = reset_control_debugfs_open,
++	.read = seq_read,
++	.write = reset_control_debugfs_write,
++	.llseek = seq_lseek,
++	.release = single_release,
++};
++
++static int reset_control_debugfs_init(const char *dir_name,
++				struct dentry **d_entry,
++				struct dentry **f_entry,
++				struct reset_control *priv)
++{
++	struct dentry  *dp, *fp;
++	char dev_name[20];
++	struct i2c_client *i2c_client = priv->i2c_client;
++	struct device_node *np = i2c_client->dev.of_node;
++	int err = 0;
++
++	if (np) {
++		err = of_property_read_string(np, "channel", &priv->channel);
++		if (err)
++			dev_err(&i2c_client->dev, "channel not found\n");
++		snprintf(dev_name, sizeof(dev_name), "reset_control_%s",
++			priv->channel);
++	}
++
++	dp = debugfs_create_dir(dev_name, NULL);
++	if (dp == NULL) {
++		dev_err(&i2c_client->dev, "%s: debugfs create dir failed\n",
++			__func__);
++		return -ENOMEM;
++	}
++
++	fp = debugfs_create_file("reset_control", S_IRUGO|S_IWUSR,
++		dp, priv, &reset_control_debugfs_fops);
++	if (!fp) {
++		dev_err(&i2c_client->dev, "%s: debugfs create file failed\n",
++			__func__);
++		debugfs_remove_recursive(dp);
++		return -ENOMEM;
++	}
++
++	if (d_entry)
++		*d_entry = dp;
++	if (f_entry)
++		*f_entry = fp;
++	return 0;
++}
++
++static  struct regmap_config reset_control_regmap_config = {
++	.reg_bits = 8,
++	.val_bits = 8,
++	.cache_type = REGCACHE_RBTREE,
++};
++
++static int reset_control_probe(struct i2c_client *client,
++				const struct i2c_device_id *id)
++{
++	struct reset_control *priv;
++	int err = 0;
++
++	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
++	priv->i2c_client = client;
++	priv->regmap = devm_regmap_init_i2c(priv->i2c_client,
++				&reset_control_regmap_config);
++	if (IS_ERR(priv->regmap)) {
++		dev_err(&client->dev,
++			"regmap init failed: %ld\n", PTR_ERR(priv->regmap));
++		return -ENODEV;
++	}
++
++	err = reset_control_debugfs_init(NULL, NULL, NULL, priv);
++	if (err)
++		return err;
++	priv_global = priv;
++	dev_info(&client->dev, "%s:  success\n", __func__);
++
++	return err;
++}
++
++
++static int
++reset_control_remove(struct i2c_client *client)
++{
++
++	if (client != NULL) {
++		i2c_unregister_device(client);
++		client = NULL;
++	}
++
++	return 0;
++}
++
++static const struct i2c_device_id reset_control_id[] = {
++	{ "reset_control", 0 },
++	{ },
++};
++
++const static struct of_device_id reset_control_of_match[] = {
++	{ .compatible = "nvidia,reset_control", },
++	{ },
++};
++MODULE_DEVICE_TABLE(i2c, reset_control_id);
++
++static struct i2c_driver reset_control_i2c_driver = {
++	.driver = {
++		.name = "reset_control",
++		.owner = THIS_MODULE,
++	},
++	.probe = reset_control_probe,
++	.remove = reset_control_remove,
++	.id_table = reset_control_id,
++};
++
++static int __init reset_control_init(void)
++{
++	return i2c_add_driver(&reset_control_i2c_driver);
++}
++
++static void __exit reset_control_exit(void)
++{
++	i2c_del_driver(&reset_control_i2c_driver);
++}
++
++module_init(reset_control_init);
++module_exit(reset_control_exit);
++
++MODULE_DESCRIPTION("IO Expander driver reset_control");
++MODULE_AUTHOR("NVIDIA Corporation");
++MODULE_AUTHOR("Yi Xu <xy@leopardimaging.com>");
++MODULE_LICENSE("GPL v2");
++

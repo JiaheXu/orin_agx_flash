@@ -1,0 +1,17 @@
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/soc/t23x/kernel-dts/tegra234-soc/tegra234-aon.dtsi	2022-08-10 23:14:51.000000000 -0400
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/soc/t23x/kernel-dts/tegra234-soc/tegra234-aon.dtsi	2023-02-13 15:26:03.742265429 -0500
+@@ -63,6 +63,13 @@
+ 	aon_echo {
+ 		compatible = "nvidia,tegra186-aon-ivc-echo";
+ 		mboxes = <&aon 1>;
+-		status = "disabled";
++		status = "okay";
++	}; // already_patched
++	pps {
++		compatible = "pps-gpio";
++		assert-rising-edge;
++		gpios = <&tegra_main_gpio TEGRA234_MAIN_GPIO(Q, 6) GPIO_ACTIVE_HIGH>;
++		status = "okay";
++		echo-active-ms = <1>;
+ 	};
+ };

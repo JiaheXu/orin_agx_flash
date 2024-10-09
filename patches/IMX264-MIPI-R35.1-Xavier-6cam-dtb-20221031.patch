@@ -1,0 +1,2018 @@
+diff -Naur hardware/nvidia/platform/t23x/common/kernel-dts/t234-common-modules/tegra234-camera-imx264-a00.dtsi hardware_new/nvidia/platform/t23x/common/kernel-dts/t234-common-modules/tegra234-camera-imx264-a00.dtsi
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/platform/t23x/common/kernel-dts/t234-common-modules/tegra234-camera-imx264-a00.dtsi	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/platform/t23x/common/kernel-dts/t234-common-modules/tegra234-camera-imx264-a00.dtsi	2022-10-31 00:55:32.033593052 -0700
+@@ -0,0 +1,1858 @@
++/*
++ * Copyright (c) 2016-2022, NVIDIA CORPORATION.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++ // already_patched
++/ {
++	tegra-capture-vi {
++		num-channels = <6>;
++		ports {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			port@0 {
++				reg = <0>;
++				liimx264_vi_in0: endpoint {
++					port-index = <0>;
++					bus-width = <2>;
++					remote-endpoint = <&liimx264_csi_out0>;
++				};
++			};
++			port@1 {
++				reg = <1>;
++				liimx264_vi_in1: endpoint {
++					port-index = <1>;
++					bus-width = <2>;
++					remote-endpoint = <&liimx264_csi_out1>;
++				};
++			};
++			port@2 {
++				reg = <2>;
++				liimx264_vi_in2: endpoint {
++					port-index = <2>;
++					bus-width = <2>;
++					remote-endpoint = <&liimx264_csi_out2>;
++				};
++			};
++			port@3 {
++				reg = <3>;
++				liimx264_vi_in3: endpoint {
++					port-index = <3>;
++					bus-width = <2>;
++					remote-endpoint = <&liimx264_csi_out3>;
++				};
++			};
++			port@4 {
++				reg = <4>;
++				liimx264_vi_in4: endpoint {
++					port-index = <4>;
++					bus-width = <2>;
++					remote-endpoint = <&liimx264_csi_out4>;
++				};
++			};
++			port@5 {
++				reg = <5>;
++				liimx264_vi_in5: endpoint {
++					port-index = <5>;
++					bus-width = <2>;
++					remote-endpoint = <&liimx264_csi_out5>;
++				};
++			};
++		};
++	};
++
++	host1x@13e00000 {
++		nvcsi@15a00000 {
++			num-channels = <6>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			channel@0 {
++				reg = <0>;
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_csi_in0: endpoint@0 {
++							port-index = <0>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_imx264_out0>;
++						};
++					};
++					port@1 {
++						reg = <1>;
++						liimx264_csi_out0: endpoint@1 {
++							remote-endpoint = <&liimx264_vi_in0>;
++						};
++					};
++				};
++			};
++			channel@1 {
++				reg = <1>;
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_csi_in1: endpoint@2 {
++							port-index = <1>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_imx264_out1>;
++						};
++					};
++					port@1 {
++						reg = <1>;
++						liimx264_csi_out1: endpoint@3 {
++							remote-endpoint = <&liimx264_vi_in1>;
++						};
++					};
++				};
++			};
++			channel@2 {
++				reg = <2>;
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_csi_in2: endpoint@4 {
++							port-index = <2>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_imx264_out2>;
++						};
++					};
++					port@1 {
++						reg = <1>;
++						liimx264_csi_out2: endpoint@5 {
++							remote-endpoint = <&liimx264_vi_in2>;
++						};
++					};
++				};
++			};
++			channel@3 {
++				reg = <3>;
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_csi_in3: endpoint@6 {
++							port-index = <3>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_imx264_out3>;
++						};
++					};
++					port@1 {
++						reg = <1>;
++						liimx264_csi_out3: endpoint@7 {
++							remote-endpoint = <&liimx264_vi_in3>;
++						};
++					};
++				};
++			};
++			channel@4 {
++				reg = <4>;
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_csi_in4: endpoint@8 {
++							port-index = <4>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_imx264_out4>;
++						};
++					};
++					port@1 {
++						reg = <1>;
++						liimx264_csi_out4: endpoint@9 {
++							remote-endpoint = <&liimx264_vi_in4>;
++						};
++					};
++				};
++			};
++			channel@5 {
++				reg = <5>;
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_csi_in5: endpoint@10 {
++							port-index = <6>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_imx264_out5>;
++						};
++					};
++					port@1 {
++						reg = <1>;
++						liimx264_csi_out5: endpoint@11 {
++							remote-endpoint = <&liimx264_vi_in5>;
++						};
++					};
++				};
++			};
++		};
++	};
++
++	i2c@3180000 {
++		reset_control@3d {
++			compatible = "nvidia,reset_control";
++			reg = <0x3d>;
++			channel = "a";
++		};
++		tca9548@77 {
++			i2c@0 {
++			fpga_a: fpga_a@3c {
++				compatible = "nvidia,fpga";
++				reg = <0x3c>;
++				channel = "a";
++			};
++			imx264_a@10 {
++				compatible = "nvidia,imx264";
++
++				reg = <0x10>;
++				devnode = "video0";
++
++				/* Physical dimensions of sensor */
++				physical_w = "15.0";
++				physical_h = "12.5";
++
++				sensor_model ="imx264";
++				/* Define any required hw resources needed by driver */
++				/* ie. clocks, io pins, power sources */
++
++				/* Defines number of frames to be dropped by driver internally after applying */
++				/* sensor crop settings. Some sensors send corrupt frames after applying */
++				/* crop co-ordinates */
++				post_crop_frame_drop = "0";
++
++				/* Convert Gain to unit of dB (decibel) befor passing to kernel driver */
++				use_decibel_gain = "true";
++
++				/* if true, delay gain setting by one frame to be in sync with exposure */
++				delayed_gain = "true";
++
++				/* enable CID_SENSOR_MODE_ID for sensor modes selection */
++				use_sensor_mode_id = "true";
++
++				/* WAR to prevent banding by reducing analog gain. Bug 2229902 */
++				limit_analog_gain = "true";
++
++				/**
++				* ==== Modes ====
++				* A modeX node is required to support v4l2 driver
++				* implementation with NVIDIA camera software stack
++				*
++				* == Signal properties ==
++				*
++				* phy_mode = "";
++				* PHY mode used by the MIPI lanes for this device
++				*
++				* tegra_sinterface = "";
++				* CSI Serial interface connected to tegra
++				* Incase of virtual HW devices, use virtual
++				* For SW emulated devices, use host
++				*
++				* pix_clk_hz = "";
++				* Sensor pixel clock used for calculations like exposure and framerate
++				*
++				* readout_orientation = "0";
++				* Based on camera module orientation.
++				* Only change readout_orientation if you specifically
++				* Program a different readout order for this mode
++				*
++				* == Image format Properties ==
++				*
++				* active_w = "";
++				* Pixel active region width
++				*
++				* active_h = "";
++				* Pixel active region height
++				*
++				* pixel_t = "";
++				* The sensor readout pixel pattern
++				*
++				* line_length = "";
++				* Pixel line length (width) for sensor mode.
++				*
++				* == Source Control Settings ==
++				*
++				* Gain factor used to convert fixed point integer to float
++				* Gain range [min_gain/gain_factor, max_gain/gain_factor]
++				* Gain step [step_gain/gain_factor is the smallest step that can be configured]
++				* Default gain [Default gain to be initialized for the control.
++				*     use min_gain_val as default for optimal results]
++				* Framerate factor used to convert fixed point integer to float
++				* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
++				* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
++				* Default Framerate [Default framerate to be initialized for the control.
++				*     use max_framerate to get required performance]
++				* Exposure factor used to convert fixed point integer to float
++				* For convenience use 1 sec = 1000000us as conversion factor
++				* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
++				* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
++				* Default Exposure Time [Default exposure to be initialized for the control.
++				*     Set default exposure based on the default_framerate for optimal exposure settings]
++				*
++				* gain_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_gain_val = ""; (ceil to integer)
++				* max_gain_val = ""; (ceil to integer)
++				* step_gain_val = ""; (ceil to integer)
++				* default_gain = ""; (ceil to integer)
++				* Gain limits for mode
++				*
++				* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_exp_time = ""; (ceil to integer)
++				* max_exp_time = ""; (ceil to integer)
++				* step_exp_time = ""; (ceil to integer)
++				* default_exp_time = ""; (ceil to integer)
++				* Exposure Time limits for mode (sec)
++				*
++				* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_framerate = ""; (ceil to integer)
++				* max_framerate = ""; (ceil to integer)
++				* step_framerate = ""; (ceil to integer)
++				* default_framerate = ""; (ceil to integer)
++				* Framerate limits for mode (fps)
++				*
++				* embedded_metadata_height = "";
++				* Sensor embedded metadata height in units of rows.
++				* If sensor does not support embedded metadata value should be 0.
++				*/
++				mode0 {/*mode IMX264_MODE_2448X2048_24FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_a";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "2448";
++					active_h = "2048";
++					readout_orientation = "0";
++					line_length = "2656";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "137000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "24600000"; /* 1.5 */
++					max_framerate = "24600000"; /* 30 */
++					step_framerate = "1";
++					default_framerate= "24600000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "40000"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "20000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode1 {/*mode IMX264_MODE_1224X1028_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_a";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "1224";
++					active_h = "1028";
++					readout_orientation = "0";
++					line_length = "2112";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "200000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "22"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode2 {/*mode IMX264_MODE_640X512_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_a";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "640";
++					active_h = "512";
++					readout_orientation = "0";
++					line_length = "2256";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "115631505";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_imx264_out0: endpoint {
++							port-index = <0>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_csi_in0>;
++							};
++						};
++					};
++				};
++			};
++			i2c@1 {
++			fpga_b: fpga_b@3c {
++				compatible = "nvidia,fpga";
++				reg = <0x3c>;
++				channel = "b";
++			};
++			imx264_b@10 {
++				compatible = "nvidia,imx264";
++
++				reg = <0x10>;
++				devnode = "video1";
++
++				/* Physical dimensions of sensor */
++				physical_w = "15.0";
++				physical_h = "12.5";
++
++				sensor_model ="imx264";
++				/* Define any required hw resources needed by driver */
++				/* ie. clocks, io pins, power sources */
++
++				/* Defines number of frames to be dropped by driver internally after applying */
++				/* sensor crop settings. Some sensors send corrupt frames after applying */
++				/* crop co-ordinates */
++				post_crop_frame_drop = "0";
++
++				/* Convert Gain to unit of dB (decibel) befor passing to kernel driver */
++				use_decibel_gain = "true";
++
++				/* if true, delay gain setting by one frame to be in sync with exposure */
++				delayed_gain = "true";
++
++				/* enable CID_SENSOR_MODE_ID for sensor modes selection */
++				use_sensor_mode_id = "true";
++
++				/* WAR to prevent banding by reducing analog gain. Bug 2229902 */
++				limit_analog_gain = "true";
++
++				/**
++				* ==== Modes ====
++				* A modeX node is required to support v4l2 driver
++				* implementation with NVIDIA camera software stack
++				*
++				* == Signal properties ==
++				*
++				* phy_mode = "";
++				* PHY mode used by the MIPI lanes for this device
++				*
++				* tegra_sinterface = "";
++				* CSI Serial interface connected to tegra
++				* Incase of virtual HW devices, use virtual
++				* For SW emulated devices, use host
++				*
++				* pix_clk_hz = "";
++				* Sensor pixel clock used for calculations like exposure and framerate
++				*
++				* readout_orientation = "0";
++				* Based on camera module orientation.
++				* Only change readout_orientation if you specifically
++				* Program a different readout order for this mode
++				*
++				* == Image format Properties ==
++				*
++				* active_w = "";
++				* Pixel active region width
++				*
++				* active_h = "";
++				* Pixel active region height
++				*
++				* pixel_t = "";
++				* The sensor readout pixel pattern
++				*
++				* line_length = "";
++				* Pixel line length (width) for sensor mode.
++				*
++				* == Source Control Settings ==
++				*
++				* Gain factor used to convert fixed point integer to float
++				* Gain range [min_gain/gain_factor, max_gain/gain_factor]
++				* Gain step [step_gain/gain_factor is the smallest step that can be configured]
++				* Default gain [Default gain to be initialized for the control.
++				*     use min_gain_val as default for optimal results]
++				* Framerate factor used to convert fixed point integer to float
++				* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
++				* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
++				* Default Framerate [Default framerate to be initialized for the control.
++				*     use max_framerate to get required performance]
++				* Exposure factor used to convert fixed point integer to float
++				* For convenience use 1 sec = 1000000us as conversion factor
++				* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
++				* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
++				* Default Exposure Time [Default exposure to be initialized for the control.
++				*     Set default exposure based on the default_framerate for optimal exposure settings]
++				*
++				* gain_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_gain_val = ""; (ceil to integer)
++				* max_gain_val = ""; (ceil to integer)
++				* step_gain_val = ""; (ceil to integer)
++				* default_gain = ""; (ceil to integer)
++				* Gain limits for mode
++				*
++				* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_exp_time = ""; (ceil to integer)
++				* max_exp_time = ""; (ceil to integer)
++				* step_exp_time = ""; (ceil to integer)
++				* default_exp_time = ""; (ceil to integer)
++				* Exposure Time limits for mode (sec)
++				*
++				* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_framerate = ""; (ceil to integer)
++				* max_framerate = ""; (ceil to integer)
++				* step_framerate = ""; (ceil to integer)
++				* default_framerate = ""; (ceil to integer)
++				* Framerate limits for mode (fps)
++				*
++				* embedded_metadata_height = "";
++				* Sensor embedded metadata height in units of rows.
++				* If sensor does not support embedded metadata value should be 0.
++				*/
++				mode0 {/*mode IMX264_MODE_2448X2048_24FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_b";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "2448";
++					active_h = "2048";
++					readout_orientation = "0";
++					line_length = "2656";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "137000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "24600000"; /* 1.5 */
++					max_framerate = "24600000"; /* 30 */
++					step_framerate = "1";
++					default_framerate= "24600000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "40000"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "20000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode1 {/*mode IMX264_MODE_1224X1028_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_b";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "1224";
++					active_h = "1028";
++					readout_orientation = "0";
++					line_length = "2112";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "200000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "22"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode2 {/*mode IMX264_MODE_640X512_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_b";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "640";
++					active_h = "512";
++					readout_orientation = "0";
++					line_length = "2256";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "115631505";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_imx264_out1: endpoint {
++							port-index = <1>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_csi_in1>;
++							};
++						};
++					};
++				};
++			};
++			i2c@2 {
++			fpga_c: fpga_c@3c {
++				compatible = "nvidia,fpga";
++				reg = <0x3c>;
++				channel = "c";
++			};
++			imx264_c@10 {
++				compatible = "nvidia,imx264";
++
++				reg = <0x10>;
++				devnode = "video2";
++
++				/* Physical dimensions of sensor */
++				physical_w = "15.0";
++				physical_h = "12.5";
++
++				sensor_model ="imx264";
++				/* Define any required hw resources needed by driver */
++				/* ie. clocks, io pins, power sources */
++
++				/* Defines number of frames to be dropped by driver internally after applying */
++				/* sensor crop settings. Some sensors send corrupt frames after applying */
++				/* crop co-ordinates */
++				post_crop_frame_drop = "0";
++
++				/* Convert Gain to unit of dB (decibel) befor passing to kernel driver */
++				use_decibel_gain = "true";
++
++				/* if true, delay gain setting by one frame to be in sync with exposure */
++				delayed_gain = "true";
++
++				/* enable CID_SENSOR_MODE_ID for sensor modes selection */
++				use_sensor_mode_id = "true";
++
++				/* WAR to prevent banding by reducing analog gain. Bug 2229902 */
++				limit_analog_gain = "true";
++
++				/**
++				* ==== Modes ====
++				* A modeX node is required to support v4l2 driver
++				* implementation with NVIDIA camera software stack
++				*
++				* == Signal properties ==
++				*
++				* phy_mode = "";
++				* PHY mode used by the MIPI lanes for this device
++				*
++				* tegra_sinterface = "";
++				* CSI Serial interface connected to tegra
++				* Incase of virtual HW devices, use virtual
++				* For SW emulated devices, use host
++				*
++				* pix_clk_hz = "";
++				* Sensor pixel clock used for calculations like exposure and framerate
++				*
++				* readout_orientation = "0";
++				* Based on camera module orientation.
++				* Only change readout_orientation if you specifically
++				* Program a different readout order for this mode
++				*
++				* == Image format Properties ==
++				*
++				* active_w = "";
++				* Pixel active region width
++				*
++				* active_h = "";
++				* Pixel active region height
++				*
++				* pixel_t = "";
++				* The sensor readout pixel pattern
++				*
++				* line_length = "";
++				* Pixel line length (width) for sensor mode.
++				*
++				* == Source Control Settings ==
++				*
++				* Gain factor used to convert fixed point integer to float
++				* Gain range [min_gain/gain_factor, max_gain/gain_factor]
++				* Gain step [step_gain/gain_factor is the smallest step that can be configured]
++				* Default gain [Default gain to be initialized for the control.
++				*     use min_gain_val as default for optimal results]
++				* Framerate factor used to convert fixed point integer to float
++				* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
++				* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
++				* Default Framerate [Default framerate to be initialized for the control.
++				*     use max_framerate to get required performance]
++				* Exposure factor used to convert fixed point integer to float
++				* For convenience use 1 sec = 1000000us as conversion factor
++				* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
++				* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
++				* Default Exposure Time [Default exposure to be initialized for the control.
++				*     Set default exposure based on the default_framerate for optimal exposure settings]
++				*
++				* gain_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_gain_val = ""; (ceil to integer)
++				* max_gain_val = ""; (ceil to integer)
++				* step_gain_val = ""; (ceil to integer)
++				* default_gain = ""; (ceil to integer)
++				* Gain limits for mode
++				*
++				* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_exp_time = ""; (ceil to integer)
++				* max_exp_time = ""; (ceil to integer)
++				* step_exp_time = ""; (ceil to integer)
++				* default_exp_time = ""; (ceil to integer)
++				* Exposure Time limits for mode (sec)
++				*
++				* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_framerate = ""; (ceil to integer)
++				* max_framerate = ""; (ceil to integer)
++				* step_framerate = ""; (ceil to integer)
++				* default_framerate = ""; (ceil to integer)
++				* Framerate limits for mode (fps)
++				*
++				* embedded_metadata_height = "";
++				* Sensor embedded metadata height in units of rows.
++				* If sensor does not support embedded metadata value should be 0.
++				*/
++				mode0 {/*mode IMX264_MODE_2448X2048_24FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_c";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "2448";
++					active_h = "2048";
++					readout_orientation = "0";
++					line_length = "2656";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "137000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "24600000"; /* 1.5 */
++					max_framerate = "24600000"; /* 30 */
++					step_framerate = "1";
++					default_framerate= "24600000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "40000"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "20000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode1 {/*mode IMX264_MODE_1224X1028_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_c";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "1224";
++					active_h = "1028";
++					readout_orientation = "0";
++					line_length = "2112";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "200000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "22"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode2 {/*mode IMX264_MODE_640X512_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_c";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "640";
++					active_h = "512";
++					readout_orientation = "0";
++					line_length = "2256";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "115631505";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_imx264_out2: endpoint {
++							port-index = <2>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_csi_in2>;
++							};
++						};
++					};
++				};
++			};
++			i2c@3 {
++			fpga_d: fpga_d@3c {
++				compatible = "nvidia,fpga";
++				reg = <0x3c>;
++				channel = "d";
++			};
++			imx264_d@10 {
++				compatible = "nvidia,imx264";
++
++				reg = <0x10>;
++				devnode = "video3";
++
++				/* Physical dimensions of sensor */
++				physical_w = "15.0";
++				physical_h = "12.5";
++
++				sensor_model ="imx264";
++				/* Define any required hw resources needed by driver */
++				/* ie. clocks, io pins, power sources */
++
++				/* Defines number of frames to be dropped by driver internally after applying */
++				/* sensor crop settings. Some sensors send corrupt frames after applying */
++				/* crop co-ordinates */
++				post_crop_frame_drop = "0";
++
++				/* Convert Gain to unit of dB (decibel) befor passing to kernel driver */
++				use_decibel_gain = "true";
++
++				/* if true, delay gain setting by one frame to be in sync with exposure */
++				delayed_gain = "true";
++
++				/* enable CID_SENSOR_MODE_ID for sensor modes selection */
++				use_sensor_mode_id = "true";
++
++				/* WAR to prevent banding by reducing analog gain. Bug 2229902 */
++				limit_analog_gain = "true";
++
++				/**
++				* ==== Modes ====
++				* A modeX node is required to support v4l2 driver
++				* implementation with NVIDIA camera software stack
++				*
++				* == Signal properties ==
++				*
++				* phy_mode = "";
++				* PHY mode used by the MIPI lanes for this device
++				*
++				* tegra_sinterface = "";
++				* CSI Serial interface connected to tegra
++				* Incase of virtual HW devices, use virtual
++				* For SW emulated devices, use host
++				*
++				* pix_clk_hz = "";
++				* Sensor pixel clock used for calculations like exposure and framerate
++				*
++				* readout_orientation = "0";
++				* Based on camera module orientation.
++				* Only change readout_orientation if you specifically
++				* Program a different readout order for this mode
++				*
++				* == Image format Properties ==
++				*
++				* active_w = "";
++				* Pixel active region width
++				*
++				* active_h = "";
++				* Pixel active region height
++				*
++				* pixel_t = "";
++				* The sensor readout pixel pattern
++				*
++				* line_length = "";
++				* Pixel line length (width) for sensor mode.
++				*
++				* == Source Control Settings ==
++				*
++				* Gain factor used to convert fixed point integer to float
++				* Gain range [min_gain/gain_factor, max_gain/gain_factor]
++				* Gain step [step_gain/gain_factor is the smallest step that can be configured]
++				* Default gain [Default gain to be initialized for the control.
++				*     use min_gain_val as default for optimal results]
++				* Framerate factor used to convert fixed point integer to float
++				* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
++				* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
++				* Default Framerate [Default framerate to be initialized for the control.
++				*     use max_framerate to get required performance]
++				* Exposure factor used to convert fixed point integer to float
++				* For convenience use 1 sec = 1000000us as conversion factor
++				* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
++				* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
++				* Default Exposure Time [Default exposure to be initialized for the control.
++				*     Set default exposure based on the default_framerate for optimal exposure settings]
++				*
++				* gain_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_gain_val = ""; (ceil to integer)
++				* max_gain_val = ""; (ceil to integer)
++				* step_gain_val = ""; (ceil to integer)
++				* default_gain = ""; (ceil to integer)
++				* Gain limits for mode
++				*
++				* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_exp_time = ""; (ceil to integer)
++				* max_exp_time = ""; (ceil to integer)
++				* step_exp_time = ""; (ceil to integer)
++				* default_exp_time = ""; (ceil to integer)
++				* Exposure Time limits for mode (sec)
++				*
++				* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_framerate = ""; (ceil to integer)
++				* max_framerate = ""; (ceil to integer)
++				* step_framerate = ""; (ceil to integer)
++				* default_framerate = ""; (ceil to integer)
++				* Framerate limits for mode (fps)
++				*
++				* embedded_metadata_height = "";
++				* Sensor embedded metadata height in units of rows.
++				* If sensor does not support embedded metadata value should be 0.
++				*/
++				mode0 {/*mode IMX264_MODE_2448X2048_24FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_d";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "2448";
++					active_h = "2048";
++					readout_orientation = "0";
++					line_length = "2656";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "137000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "24600000"; /* 1.5 */
++					max_framerate = "24600000"; /* 30 */
++					step_framerate = "1";
++					default_framerate= "24600000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "40000"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "20000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode1 {/*mode IMX264_MODE_1224X1028_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_d";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "1224";
++					active_h = "1028";
++					readout_orientation = "0";
++					line_length = "2112";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "200000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "22"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode2 {/*mode IMX264_MODE_640X512_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_d";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "640";
++					active_h = "512";
++					readout_orientation = "0";
++					line_length = "2256";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "115631505";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_imx264_out3: endpoint {
++							port-index = <3>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_csi_in3>;
++							};
++						};
++					};
++				};
++			};
++			i2c@4 {
++			fpga_e: fpga_e@3c {
++				compatible = "nvidia,fpga";
++				reg = <0x3c>;
++				channel = "e";
++			};
++			imx264_e@10 {
++				compatible = "nvidia,imx264";
++
++				reg = <0x10>;
++				devnode = "video4";
++
++				/* Physical dimensions of sensor */
++				physical_w = "15.0";
++				physical_h = "12.5";
++
++				sensor_model ="imx264";
++				/* Define any required hw resources needed by driver */
++				/* ie. clocks, io pins, power sources */
++
++				/* Defines number of frames to be dropped by driver internally after applying */
++				/* sensor crop settings. Some sensors send corrupt frames after applying */
++				/* crop co-ordinates */
++				post_crop_frame_drop = "0";
++
++				/* Convert Gain to unit of dB (decibel) befor passing to kernel driver */
++				use_decibel_gain = "true";
++
++				/* if true, delay gain setting by one frame to be in sync with exposure */
++				delayed_gain = "true";
++
++				/* enable CID_SENSOR_MODE_ID for sensor modes selection */
++				use_sensor_mode_id = "true";
++
++				/* WAR to prevent banding by reducing analog gain. Bug 2229902 */
++				limit_analog_gain = "true";
++
++				/**
++				* ==== Modes ====
++				* A modeX node is required to support v4l2 driver
++				* implementation with NVIDIA camera software stack
++				*
++				* == Signal properties ==
++				*
++				* phy_mode = "";
++				* PHY mode used by the MIPI lanes for this device
++				*
++				* tegra_sinterface = "";
++				* CSI Serial interface connected to tegra
++				* Incase of virtual HW devices, use virtual
++				* For SW emulated devices, use host
++				*
++				* pix_clk_hz = "";
++				* Sensor pixel clock used for calculations like exposure and framerate
++				*
++				* readout_orientation = "0";
++				* Based on camera module orientation.
++				* Only change readout_orientation if you specifically
++				* Program a different readout order for this mode
++				*
++				* == Image format Properties ==
++				*
++				* active_w = "";
++				* Pixel active region width
++				*
++				* active_h = "";
++				* Pixel active region height
++				*
++				* pixel_t = "";
++				* The sensor readout pixel pattern
++				*
++				* line_length = "";
++				* Pixel line length (width) for sensor mode.
++				*
++				* == Source Control Settings ==
++				*
++				* Gain factor used to convert fixed point integer to float
++				* Gain range [min_gain/gain_factor, max_gain/gain_factor]
++				* Gain step [step_gain/gain_factor is the smallest step that can be configured]
++				* Default gain [Default gain to be initialized for the control.
++				*     use min_gain_val as default for optimal results]
++				* Framerate factor used to convert fixed point integer to float
++				* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
++				* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
++				* Default Framerate [Default framerate to be initialized for the control.
++				*     use max_framerate to get required performance]
++				* Exposure factor used to convert fixed point integer to float
++				* For convenience use 1 sec = 1000000us as conversion factor
++				* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
++				* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
++				* Default Exposure Time [Default exposure to be initialized for the control.
++				*     Set default exposure based on the default_framerate for optimal exposure settings]
++				*
++				* gain_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_gain_val = ""; (ceil to integer)
++				* max_gain_val = ""; (ceil to integer)
++				* step_gain_val = ""; (ceil to integer)
++				* default_gain = ""; (ceil to integer)
++				* Gain limits for mode
++				*
++				* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_exp_time = ""; (ceil to integer)
++				* max_exp_time = ""; (ceil to integer)
++				* step_exp_time = ""; (ceil to integer)
++				* default_exp_time = ""; (ceil to integer)
++				* Exposure Time limits for mode (sec)
++				*
++				* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_framerate = ""; (ceil to integer)
++				* max_framerate = ""; (ceil to integer)
++				* step_framerate = ""; (ceil to integer)
++				* default_framerate = ""; (ceil to integer)
++				* Framerate limits for mode (fps)
++				*
++				* embedded_metadata_height = "";
++				* Sensor embedded metadata height in units of rows.
++				* If sensor does not support embedded metadata value should be 0.
++				*/
++				mode0 {/*mode IMX264_MODE_2448X2048_24FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_e";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "2448";
++					active_h = "2048";
++					readout_orientation = "0";
++					line_length = "2656";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "137000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "24600000"; /* 1.5 */
++					max_framerate = "24600000"; /* 30 */
++					step_framerate = "1";
++					default_framerate= "24600000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "40000"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "20000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode1 {/*mode IMX264_MODE_1224X1028_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_e";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "1224";
++					active_h = "1028";
++					readout_orientation = "0";
++					line_length = "2112";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "200000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "22"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode2 {/*mode IMX264_MODE_640X512_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_e";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "640";
++					active_h = "512";
++					readout_orientation = "0";
++					line_length = "2256";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "115631505";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_imx264_out4: endpoint {
++							port-index = <4>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_csi_in4>;
++							};
++						};
++					};
++				};
++			};
++			i2c@5 {
++			fpga_g: fpga_g@3c {
++				compatible = "nvidia,fpga";
++				reg = <0x3c>;
++				channel = "g";
++			};
++			imx264_g@10 {
++				compatible = "nvidia,imx264";
++
++				reg = <0x10>;
++				devnode = "video5";
++
++				/* Physical dimensions of sensor */
++				physical_w = "15.0";
++				physical_h = "12.5";
++
++				sensor_model ="imx264";
++				/* Define any required hw resources needed by driver */
++				/* ie. clocks, io pins, power sources */
++
++				/* Defines number of frames to be dropped by driver internally after applying */
++				/* sensor crop settings. Some sensors send corrupt frames after applying */
++				/* crop co-ordinates */
++				post_crop_frame_drop = "0";
++
++				/* Convert Gain to unit of dB (decibel) befor passing to kernel driver */
++				use_decibel_gain = "true";
++
++				/* if true, delay gain setting by one frame to be in sync with exposure */
++				delayed_gain = "true";
++
++				/* enable CID_SENSOR_MODE_ID for sensor modes selection */
++				use_sensor_mode_id = "true";
++
++				/* WAR to prevent banding by reducing analog gain. Bug 2229902 */
++				limit_analog_gain = "true";
++
++				/**
++				* ==== Modes ====
++				* A modeX node is required to support v4l2 driver
++				* implementation with NVIDIA camera software stack
++				*
++				* == Signal properties ==
++				*
++				* phy_mode = "";
++				* PHY mode used by the MIPI lanes for this device
++				*
++				* tegra_sinterface = "";
++				* CSI Serial interface connected to tegra
++				* Incase of virtual HW devices, use virtual
++				* For SW emulated devices, use host
++				*
++				* pix_clk_hz = "";
++				* Sensor pixel clock used for calculations like exposure and framerate
++				*
++				* readout_orientation = "0";
++				* Based on camera module orientation.
++				* Only change readout_orientation if you specifically
++				* Program a different readout order for this mode
++				*
++				* == Image format Properties ==
++				*
++				* active_w = "";
++				* Pixel active region width
++				*
++				* active_h = "";
++				* Pixel active region height
++				*
++				* pixel_t = "";
++				* The sensor readout pixel pattern
++				*
++				* line_length = "";
++				* Pixel line length (width) for sensor mode.
++				*
++				* == Source Control Settings ==
++				*
++				* Gain factor used to convert fixed point integer to float
++				* Gain range [min_gain/gain_factor, max_gain/gain_factor]
++				* Gain step [step_gain/gain_factor is the smallest step that can be configured]
++				* Default gain [Default gain to be initialized for the control.
++				*     use min_gain_val as default for optimal results]
++				* Framerate factor used to convert fixed point integer to float
++				* Framerate range [min_framerate/framerate_factor, max_framerate/framerate_factor]
++				* Framerate step [step_framerate/framerate_factor is the smallest step that can be configured]
++				* Default Framerate [Default framerate to be initialized for the control.
++				*     use max_framerate to get required performance]
++				* Exposure factor used to convert fixed point integer to float
++				* For convenience use 1 sec = 1000000us as conversion factor
++				* Exposure range [min_exp_time/exposure_factor, max_exp_time/exposure_factor]
++				* Exposure step [step_exp_time/exposure_factor is the smallest step that can be configured]
++				* Default Exposure Time [Default exposure to be initialized for the control.
++				*     Set default exposure based on the default_framerate for optimal exposure settings]
++				*
++				* gain_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_gain_val = ""; (ceil to integer)
++				* max_gain_val = ""; (ceil to integer)
++				* step_gain_val = ""; (ceil to integer)
++				* default_gain = ""; (ceil to integer)
++				* Gain limits for mode
++				*
++				* exposure_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_exp_time = ""; (ceil to integer)
++				* max_exp_time = ""; (ceil to integer)
++				* step_exp_time = ""; (ceil to integer)
++				* default_exp_time = ""; (ceil to integer)
++				* Exposure Time limits for mode (sec)
++				*
++				* framerate_factor = ""; (integer factor used for floating to fixed point conversion)
++				* min_framerate = ""; (ceil to integer)
++				* max_framerate = ""; (ceil to integer)
++				* step_framerate = ""; (ceil to integer)
++				* default_framerate = ""; (ceil to integer)
++				* Framerate limits for mode (fps)
++				*
++				* embedded_metadata_height = "";
++				* Sensor embedded metadata height in units of rows.
++				* If sensor does not support embedded metadata value should be 0.
++				*/
++				mode0 {/*mode IMX264_MODE_2448X2048_24FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_g";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "2448";
++					active_h = "2048";
++					readout_orientation = "0";
++					line_length = "2656";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "137000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "24600000"; /* 1.5 */
++					max_framerate = "24600000"; /* 30 */
++					step_framerate = "1";
++					default_framerate= "24600000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "40000"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "20000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode1 {/*mode IMX264_MODE_1224X1028_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_g";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "1224";
++					active_h = "1028";
++					readout_orientation = "0";
++					line_length = "2112";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "200000000";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "22"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				mode2 {/*mode IMX264_MODE_640X512_60FPS*/
++					mclk_khz = "37125";
++					num_lanes = "2";
++					tegra_sinterface = "serial_g";
++					phy_mode = "DPHY";
++					discontinuous_clk = "no";
++					dpcm_enable = "false";
++					cil_settletime = "0";
++					dynamic_pixel_bit_depth = "12";
++					csi_pixel_bit_depth = "12";
++					mode_type = "bayer";
++					pixel_phase = "rggb";
++
++					active_w = "640";
++					active_h = "512";
++					readout_orientation = "0";
++					line_length = "2256";
++					inherent_gain = "1";
++					mclk_multiplier = "20";
++					pix_clk_hz = "115631505";
++
++					gain_factor = "1000000";
++					min_gain_val = "0"; /* 0dB */
++					max_gain_val = "24000000"; /* 24dB */
++					step_gain_val = "1";
++					default_gain = "0";
++					min_hdr_ratio = "1";
++					max_hdr_ratio = "1";
++					framerate_factor = "1000000";
++					min_framerate = "60000000";
++					max_framerate = "60000000";
++					step_framerate = "1";
++					default_framerate= "60000000";
++					exposure_factor = "1000000";
++					min_exp_time = "39"; /* us */
++					max_exp_time = "16666"; /* us */
++					step_exp_time = "1";
++					default_exp_time = "12000";/* us */
++					embedded_metadata_height = "0";
++				};
++				ports {
++					#address-cells = <1>;
++					#size-cells = <0>;
++					port@0 {
++						reg = <0>;
++						liimx264_imx264_out5: endpoint {
++							port-index = <6>;
++							bus-width = <2>;
++							remote-endpoint = <&liimx264_csi_in5>;
++							};
++						};
++					};
++				};
++			};
++		};
++	};
++};
++
++/ {
++	tegra-camera-platform {
++		compatible = "nvidia, tegra-camera-platform";
++		/**
++		* Physical settings to calculate max ISO BW
++		*
++		* num_csi_lanes = <>;
++		* Total number of CSI lanes when all cameras are active
++		*
++		* max_lane_speed = <>;
++		* Max lane speed in Kbit/s
++		*
++		* min_bits_per_pixel = <>;
++		* Min bits per pixel
++		*
++		* vi_peak_byte_per_pixel = <>;
++		* Max byte per pixel for the VI ISO case
++		*
++		* vi_bw_margin_pct = <>;
++		* Vi bandwidth margin in percentage
++		*
++		* max_pixel_rate = <>;
++		* Max pixel rate in Kpixel/s for the ISP ISO case
++		*
++		* isp_peak_byte_per_pixel = <>;
++		* Max byte per pixel for the ISP ISO case
++		*
++		* isp_bw_margin_pct = <>;
++		* Isp bandwidth margin in percentage
++		*/
++		num_csi_lanes = <12>;
++		max_lane_speed = <1500000>;
++		min_bits_per_pixel = <10>;
++		vi_peak_byte_per_pixel = <2>;
++		vi_bw_margin_pct = <25>;
++		isp_peak_byte_per_pixel = <5>;
++		isp_bw_margin_pct = <25>;
++
++		/**
++		 * The general guideline for naming badge_info contains 3 parts, and is as follows,
++		 * The first part is the camera_board_id for the module; if the module is in a FFD
++		 * platform, then use the platform name for this part.
++		 * The second part contains the position of the module, ex. "rear" or "front".
++		 * The third part contains the last 6 characters of a part number which is found
++		 * in the module's specsheet from the vender.
++		 */
++		modules {
++			module0 {
++				badge = "imx264_bottomleft_liimx264";
++				position = "bottomleft";
++				orientation = "0";
++					drivernode0 {
++					/* Declare PCL support driver (classically known as guid)  */
++					pcl_id = "v4l2_sensor";
++					/* Driver v4l2 device name */
++					devname = "imx264 30-0010";
++					/* Declare the device-tree hierarchy to driver instance */
++					proc-device-tree = "/proc/device-tree/i2c@3180000/tca9548@77/i2c@0/imx264_a@10";
++				};
++			};
++			module1 {
++				badge = "imx264_centerleft_liimx264";
++				position = "centerleft";
++				orientation = "0";
++				drivernode0 {
++					/* Declare PCL support driver (classically known as guid)  */
++					pcl_id = "v4l2_sensor";
++					/* Driver v4l2 device name */
++					devname = "imx264 31-0010";
++					/* Declare the device-tree hierarchy to driver instance */
++					proc-device-tree = "/proc/device-tree/i2c@3180000/tca9548@77/i2c@1/imx264_b@10";
++				};
++			};
++			module2 {
++				badge = "imx264_centerright_liimx264";
++				position = "centerright";
++				orientation = "0";
++				drivernode0 {
++					/* Declare PCL support driver (classically known as guid)  */
++					pcl_id = "v4l2_sensor";
++					/* Driver v4l2 device name */
++					devname = "imx264 32-0010";
++					/* Declare the device-tree hierarchy to driver instance */
++					proc-device-tree = "/proc/device-tree/i2c@3180000/tca9548@77/i2c@2/imx264_c@10";
++				};
++			};
++			module3 {
++				badge = "imx264_topleft_liimx264";
++				position = "topleft";
++				orientation = "0";
++				drivernode0 {
++					/* Declare PCL support driver (classically known as guid)  */
++					pcl_id = "v4l2_sensor";
++					/* Driver v4l2 device name */
++					devname = "imx264 33-0010";
++					/* Declare the device-tree hierarchy to driver instance */
++					proc-device-tree = "/proc/device-tree/i2c@3180000/tca9548@77/i2c@3/imx264_d@10";
++				};
++			};
++			module4 {
++				badge = "imx264_bottomright_liimx264";
++				position = "bottomright";
++				orientation = "0";
++				drivernode0 {
++					/* Declare PCL support driver (classically known as guid)  */
++					pcl_id = "v4l2_sensor";
++					/* Driver v4l2 device name */
++					devname = "imx264 34-0010";
++					/* Declare the device-tree hierarchy to driver instance */
++					proc-device-tree = "/proc/device-tree/i2c@3180000/tca9548@77/i2c@4/imx264_e@10";
++				};
++			};
++			module5 {
++				badge = "imx264_topright_liimx264";
++				position = "topright";
++				orientation = "0";
++				drivernode0 {
++					/* Declare PCL support driver (classically known as guid)  */
++					pcl_id = "v4l2_sensor";
++					/* Driver v4l2 device name */
++					devname = "imx264 35-0010";
++					/* Declare the device-tree hierarchy to driver instance */
++					proc-device-tree = "/proc/device-tree/i2c@3180000/tca9548@77/i2c@5/imx264_g@10";
++				};
++			};
++		};
++	};
++};
+diff -Naur hardware/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3701-0000-p3737-0000.dts hardware_new/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3701-0000-p3737-0000.dts
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3701-0000-p3737-0000.dts	2022-08-10 20:14:51.000000000 -0700
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3701-0000-p3737-0000.dts	2022-10-31 00:55:32.033593052 -0700
+@@ -19,7 +19,8 @@
+ #include "tegra234-power-tree-p3701-0000-p3737-0000.dtsi"
+ #include "tegra234-dcb-p3701-0000-a02-p3737-0000-a01.dtsi"
+ #include <tegra234-soc/mods-simple-bus.dtsi>
+-#include "cvb/tegra234-p3737-camera-modules.dtsi"
++//#include "cvb/tegra234-p3737-camera-modules.dtsi"
++#include "tegra234-p3737-0000-camera-imx264-a00.dtsi"
+ 
+ #include <t234-common-cvm/tegra234-cpuidle.dtsi>
+ #include <t234-common-cvm/tegra234-thermal.dtsi>
+diff -Naur hardware/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3737-0000-camera-imx264-a00.dtsi hardware_new/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3737-0000-camera-imx264-a00.dtsi
+--- public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3737-0000-camera-imx264-a00.dtsi	1969-12-31 16:00:00.000000000 -0800
++++ public_sources/Linux_for_Tegra/source/public/kernel_src/hardware/nvidia/platform/t23x/concord/kernel-dts/tegra234-p3737-0000-camera-imx264-a00.dtsi	2022-10-31 00:55:32.033593052 -0700
+@@ -0,0 +1,139 @@
++/*
++ * Copyright (c) 2017-2022, NVIDIA CORPORATION.  All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ */
++#include <t234-common-modules/tegra234-camera-imx264-a00.dtsi>
++#include "dt-bindings/clock/tegra234-clock.h"
++
++#define CAM0_RST_L	TEGRA234_MAIN_GPIO(H, 3)
++#define CAMERA_I2C_MUX_BUS(x) (0x1E + x)
++
++/* camera control gpio definitions */
++
++/ {
++	i2c@3180000 {
++		tca9548@77 {
++			compatible = "nxp,pca9548";
++			reg = <0x77>;
++			#address-cells = <1>;
++			#size-cells = <0>;
++			skip_mux_detect;
++			vcc-supply = <&p3737_vdd_1v8_sys>;
++			force_bus_start = <CAMERA_I2C_MUX_BUS(0)>;
++
++			i2c@0 {
++				reg = <0>;
++				i2c-mux,deselect-on-exit;
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				imx264_a@10 {
++					/* Define any required hw resources needed by driver */
++					/* ie. clocks, io pins, power sources */
++					clocks = <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>,
++							 <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>;
++					clock-names = "extperiph1", "pllp_grtba";
++					mclk = "extperiph1";
++					nvidia,fpga-device = <&fpga_a>;
++					fpga_index = <0>;
++				};
++			};
++			i2c@1 {
++				reg = <1>;
++				i2c-mux,deselect-on-exit;
++				#address-cells = <1>;
++				#size-cells = <0>;
++			
++				imx264_b@10 {
++					/* Define any required hw resources needed by driver */
++					/* ie. clocks, io pins, power sources */
++					clocks = <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>,
++							 <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>;
++					clock-names = "extperiph1", "pllp_grtba";
++					mclk = "extperiph1";
++					nvidia,fpga-device = <&fpga_b>;
++					fpga_index = <1>;
++				};
++			};
++			i2c@2 {
++				reg = <2>;
++				i2c-mux,deselect-on-exit;
++				#address-cells = <1>;
++				#size-cells = <0>;
++				
++				imx264_c@10 {
++					/* Define any required hw resources needed by driver */
++					/* ie. clocks, io pins, power sources */
++					clocks = <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>,
++							 <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>;
++					clock-names = "extperiph1", "pllp_grtba";
++					mclk = "extperiph1";
++					nvidia,fpga-device = <&fpga_c>;
++					fpga_index = <2>;
++				};
++			};
++			i2c@3 {
++				reg = <3>;
++				i2c-mux,deselect-on-exit;
++				#address-cells = <1>;
++				#size-cells = <0>;
++				
++				imx264_d@10 {
++					/* Define any required hw resources needed by driver */
++					/* ie. clocks, io pins, power sources */
++					clocks = <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>,
++							 <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>;
++					clock-names = "extperiph1", "pllp_grtba";
++					mclk = "extperiph1";
++					nvidia,fpga-device = <&fpga_d>;
++					fpga_index = <3>;
++				};
++			};
++			i2c@4 {
++				reg = <4>;
++				i2c-mux,deselect-on-exit;
++				#address-cells = <1>;
++				#size-cells = <0>;
++				
++				imx264_e@10 {
++					/* Define any required hw resources needed by driver */
++					/* ie. clocks, io pins, power sources */
++					clocks = <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>,
++							 <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>;
++					clock-names = "extperiph1", "pllp_grtba";
++					mclk = "extperiph1";
++					nvidia,fpga-device = <&fpga_e>;
++					fpga_index = <4>;
++				};
++			};
++			i2c@5 {
++				reg = <5>;
++				i2c-mux,deselect-on-exit;
++				#address-cells = <1>;
++				#size-cells = <0>;
++				
++				imx264_g@10 {
++					/* Define any required hw resources needed by driver */
++					/* ie. clocks, io pins, power sources */
++					clocks = <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>,
++							 <&bpmp_clks TEGRA234_CLK_EXTPERIPH1>;
++					clock-names = "extperiph1", "pllp_grtba";
++					mclk = "extperiph1";
++					nvidia,fpga-device = <&fpga_g>;
++					fpga_index = <5>;
++				};
++			};
++		};
++	};
++};

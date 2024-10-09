@@ -1,0 +1,64 @@
+#
+# Copyright (c) 2020-2021, NVIDIA CORPORATION.  All rights reserved.
+#
+# NVIDIA CORPORATION and its licensors retain all intellectual property
+# and proprietary rights in and to this software, related documentation
+# and any modifications thereto.  Any use, reproduction, disclosure or
+# distribution of this software and related documentation without an express
+# license agreement from NVIDIA CORPORATION is strictly prohibited.
+#
+
+#
+# Print makefile diagnostic message
+ifeq ($(VERBOSE), 1)
+$(info Including:  module-cpl-cortex-r5-config.mk)
+endif
+
+#
+# Table of Contents:
+#   TOC:  Declare the module dependencies and check them
+#   TOC:  Declare the source directories, which automatically adds them to VPATH
+#   TOC:  Declare the include file directories needed by this module
+
+#
+# Define a something similar to header guard protection...for makefiles instead.
+#   This definition must exist for all 'module-cpl_*.mk' files.
+MODULE_CPL_CONFIG                   := 1
+MODULE_CPL_CORTEX_R5_CONFIG         := 1
+
+#
+# Check for sub-make module dependencies.  For each of the module dependencies
+#   defined below, they must exist in the build before this (current) sub-make
+#   is called.
+MODULE_CPL_DEPENDS                  := SOC CLUSTER
+$(foreach _,$(MODULE_CPL_DEPENDS),$(eval $(call CHECK_MAKEFILE_DEFINED,$_)))
+
+#
+# Define ARCH variables
+ARCH                                := arm
+ISA                                 := armv7
+CPU                                 := cortex-r5
+
+#
+# Location of source code files
+CPL_SOC_IDS                          = $(FSP_COMMON_REPO)/soc/$(SOC)/ids/$(CLUSTER)
+CPL_SOC_IDS_CMN                      = $(FSP_COMMON_REPO)/soc/$(SOC)/ids/soc-common
+CPL_SOC_PORT                         = $(FSP_COMMON_REPO)/soc/$(SOC)/port/$(CLUSTER)
+CPL_VIC_DIR                          = $(FSP_COMMON_REPO)/drivers/vic
+CPL_ARCH_DIR                         = $(FSP_COMMON_REPO)/drivers/cpu/$(ARCH)
+CPL_ISA_DIR                          = $(FSP_COMMON_REPO)/drivers/cpu/$(ARCH)/$(ISA)
+MODULE_CPL_CORTEX_R5_SOURCE_DIR      =
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_SOC_IDS)
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_SOC_IDS_CMN)
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_SOC_PORT)
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_VIC_DIR)
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_ISA_DIR)/$(CPU)
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_ARCH_DIR)/common
+MODULE_CPL_CORTEX_R5_SOURCE_DIR     += $(CPL_ISA_DIR)
+
+#
+# Common includes '-I <INCLUDEDIR>'
+MODULE_CPL_CORTEX_R5_INCLUDES        = -I $(FSP_COMMON_REPO)/include/osa/$(OSA)/$(ARCH)/$(ISA)/$(CPU)
+MODULE_CPL_CORTEX_R5_INCLUDES       += -I $(FSP_COMMON_REPO)/include/cpu/$(ARCH)/$(ISA)
+MODULE_CPL_CORTEX_R5_INCLUDES       += -I $(FSP_COMMON_REPO)/include/cpu/$(ARCH)/$(ISA)/$(CPU)
+MODULE_CPL_CORTEX_R5_INCLUDES       += -I $(FSP_COMMON_REPO)/include/cpu/$(ARCH)/common
